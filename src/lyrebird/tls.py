@@ -124,6 +124,18 @@ def _no_grease(values: list[int]) -> list[int]:
     return [v for v in values if v not in GREASE]
 
 
+def grease_present(ch: ClientHello) -> bool:
+    """True if the ClientHello carried any GREASE value (RFC 8701)."""
+    return any(v in GREASE for v in
+               (*ch.ciphers, *ch.extensions, *ch.groups,
+                *ch.sig_algs, *ch.supported_versions))
+
+
+def offers_tls13(ch: ClientHello) -> bool:
+    """True if the client advertised TLS 1.3 via supported_versions."""
+    return 0x0304 in ch.supported_versions
+
+
 def ja3(ch: ClientHello) -> tuple[str, str]:
     """Return (ja3_string, ja3_hash). JA3 keeps original extension order."""
     parts = [
