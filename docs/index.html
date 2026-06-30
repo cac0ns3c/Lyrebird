@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lyrebird — internet-services emulation for malware analysis labs</title>
+<meta name="description" content="Lyrebird stands up fake-but-believable network services so malware in an isolated sandbox keeps talking — and pairs every emulated technique with a detection.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#13201c;
+    --ink-2:#1a2a25;
+    --ink-3:#24372f;
+    --parchment:#f4eee2;
+    --parchment-2:#e9e0cd;
+    --line:#cdbfa3;
+    --line-dark:#3a4f46;
+    --ochre:#c0843f;
+    --ochre-deep:#a26a2c;
+    --rust:#9c4a24;
+    --teal:#3f6b5d;
+    --text:#26241c;
+    --text-soft:#5c5848;
+    --text-light:#d9e2db;
+    --text-light-soft:#9db3a8;
+    --max:1180px;
+    --sidebar:248px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0;
+    background:var(--parchment);
+    color:var(--text);
+    font-family:"Spectral",Georgia,serif;
+    font-size:18px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  a{color:var(--ochre-deep);text-decoration:none}
+  a:hover{text-decoration:underline;text-underline-offset:3px}
+  h1,h2,h3{font-family:"Fraunces",Georgia,serif;font-weight:600;line-height:1.05;letter-spacing:-.01em;color:var(--ink)}
+  code,kbd,pre,.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--ochre-deep);font-weight:500;
+  }
+
+  /* ---------- layout ---------- */
+  .shell{display:flex;max-width:var(--max);margin:0 auto;gap:0}
+  nav.side{
+    width:var(--sidebar);flex:0 0 var(--sidebar);
+    position:sticky;top:0;height:100vh;
+    padding:34px 22px 40px;
+    border-right:1px solid var(--line);
+    overflow-y:auto;
+  }
+  .brandmark{display:flex;align-items:baseline;gap:9px;margin-bottom:4px}
+  .brandmark .glyph{font-family:"Fraunces";font-weight:900;font-size:1.5rem;color:var(--ink)}
+  .brandmark .plate{font-family:"JetBrains Mono";font-size:.62rem;letter-spacing:.2em;color:var(--ochre-deep);border:1px solid var(--line);padding:2px 5px;border-radius:2px}
+  nav.side .sub{font-family:"JetBrains Mono";font-size:.64rem;letter-spacing:.06em;color:var(--text-soft);margin:0 0 26px;line-height:1.5}
+  nav.side ol{list-style:none;margin:0;padding:0;counter-reset:nav}
+  nav.side li{counter-increment:nav;margin:0}
+  nav.side a{
+    display:flex;gap:10px;align-items:baseline;
+    font-family:"JetBrains Mono";font-size:.78rem;letter-spacing:.01em;
+    color:var(--text-soft);padding:6px 8px;border-radius:4px;
+    border-left:2px solid transparent;
+  }
+  nav.side a::before{content:counter(nav,decimal-leading-zero);color:var(--line);font-size:.66rem;min-width:1.6em}
+  nav.side a:hover{color:var(--ink);text-decoration:none;background:var(--parchment-2)}
+  nav.side a.active{color:var(--ink);border-left-color:var(--ochre);background:var(--parchment-2)}
+  nav.side a.active::before{color:var(--ochre-deep)}
+  .side-foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-family:"JetBrains Mono";font-size:.66rem;color:var(--text-soft);line-height:1.7}
+  .side-foot a{color:var(--text-soft)}
+
+  main{flex:1 1 auto;min-width:0;padding:0 0 120px}
+  section{padding:64px 56px;border-bottom:1px solid var(--line);scroll-margin-top:0}
+  section:last-child{border-bottom:none}
+  .h-num{font-family:"JetBrains Mono";font-size:.72rem;letter-spacing:.2em;color:var(--ochre-deep)}
+  h2{font-size:2.05rem;margin:.35rem 0 1.1rem}
+  h3{font-size:1.18rem;margin:2.2rem 0 .5rem;font-weight:600}
+  p{margin:.7rem 0;max-width:64ch}
+  .lead{font-size:1.18rem;color:var(--text);max-width:62ch}
+  strong{font-weight:600;color:var(--ink)}
+  ul.clean{list-style:none;padding:0;margin:1rem 0;max-width:64ch}
+  ul.clean li{padding:.32rem 0 .32rem 1.4rem;position:relative;border-bottom:1px dotted var(--line)}
+  ul.clean li::before{content:"›";position:absolute;left:.2rem;color:var(--ochre);font-family:"JetBrains Mono"}
+
+  /* ---------- hero ---------- */
+  header.hero{
+    background:var(--ink);color:var(--text-light);
+    padding:0;border-bottom:3px solid var(--ochre);
+  }
+  .hero-inner{max-width:var(--max);margin:0 auto;padding:90px 56px 72px;position:relative;overflow:hidden}
+  .hero .eyebrow{color:var(--ochre)}
+  .hero h1{
+    color:#fbf6ec;font-weight:900;
+    font-size:clamp(3.2rem,8vw,6.4rem);
+    margin:.18em 0 .12em;letter-spacing:-.03em;
+  }
+  .hero h1 .tail{color:var(--ochre);font-style:italic;font-weight:400}
+  .hero .thesis{font-size:clamp(1.15rem,2.4vw,1.5rem);color:var(--text-light);max-width:40ch;margin:0 0 1.6rem;line-height:1.4}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:10px 8px;margin-top:8px}
+  .chip{font-family:"JetBrains Mono";font-size:.68rem;letter-spacing:.08em;color:var(--text-light-soft);border:1px solid var(--line-dark);padding:5px 10px;border-radius:2px}
+  .hero-rule{position:absolute;right:-40px;top:0;bottom:0;width:340px;opacity:.5;pointer-events:none}
+  .specimen-warn{
+    margin-top:30px;display:inline-flex;gap:14px;align-items:flex-start;
+    background:rgba(156,74,36,.14);border:1px solid var(--rust);
+    border-left:4px solid var(--rust);
+    padding:14px 18px;border-radius:3px;max-width:62ch;
+  }
+  .specimen-warn .tag{font-family:"JetBrains Mono";font-size:.6rem;letter-spacing:.16em;color:var(--ochre);text-transform:uppercase;white-space:nowrap;padding-top:3px}
+  .specimen-warn p{margin:0;font-size:.95rem;color:#f0e7d8}
+
+  /* ---------- code ---------- */
+  pre{
+    background:var(--ink);color:#e7ede9;
+    border-radius:5px;border:1px solid var(--line-dark);
+    padding:18px 20px;overflow-x:auto;font-size:.82rem;line-height:1.6;
+    margin:1.1rem 0;max-width:none;
+  }
+  pre .c{color:#7f9a8e}      /* comment   */
+  pre .k{color:var(--ochre)} /* key/kw    */
+  pre .s{color:#cdb98a}      /* string    */
+  pre .p{color:#8fb3a6}      /* punct/val */
+  code.inline{background:var(--parchment-2);border:1px solid var(--line);padding:1px 6px;border-radius:3px;font-size:.82em}
+
+  /* ---------- pairing diagram ---------- */
+  .loop{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:1.6rem 0;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+  .loop .step{padding:18px 16px;border-right:1px solid var(--line);background:var(--parchment)}
+  .loop .step:last-child{border-right:none}
+  .loop .n{font-family:"JetBrains Mono";font-size:.64rem;letter-spacing:.18em;color:var(--ochre-deep)}
+  .loop .step h4{font-family:"Fraunces";font-size:1rem;margin:.3rem 0 .35rem;color:var(--ink);font-weight:600}
+  .loop .step p{font-size:.84rem;margin:0;color:var(--text-soft)}
+  @media(max-width:720px){.loop{grid-template-columns:1fr 1fr}.loop .step:nth-child(2){border-right:none}}
+
+  /* ---------- specimen cards (services) ---------- */
+  .plates{display:grid;grid-template-columns:repeat(auto-fill,minmax(244px,1fr));gap:14px;margin:1.4rem 0}
+  .plate{
+    border:1px solid var(--line);border-radius:5px;background:#fbf7ee;
+    padding:15px 16px 16px;position:relative;
+  }
+  .plate .pn{font-family:"JetBrains Mono";font-size:.6rem;letter-spacing:.16em;color:var(--ochre-deep)}
+  .plate h4{font-family:"Fraunces";font-size:1.08rem;font-weight:600;margin:.15rem 0 .1rem;color:var(--ink)}
+  .plate .port{font-family:"JetBrains Mono";font-size:.66rem;color:var(--teal);margin-bottom:.5rem}
+  .plate p{font-size:.84rem;margin:0;color:var(--text-soft);line-height:1.5}
+  .plate .tagline{margin-top:.6rem;font-family:"JetBrains Mono";font-size:.62rem;color:var(--ochre-deep);letter-spacing:.02em}
+
+  /* ---------- detection table ---------- */
+  .det{margin:1.4rem 0;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+  .det table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .det th,.det td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .det th{font-family:"JetBrains Mono";font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-soft);background:var(--parchment-2)}
+  .det tr:last-child td{border-bottom:none}
+  .det td .mono{font-size:.78rem;color:var(--teal)}
+  .lvl{font-family:"JetBrains Mono";font-size:.62rem;letter-spacing:.08em;padding:2px 7px;border-radius:2px;white-space:nowrap;text-transform:uppercase}
+  .lvl.low{background:#e7e0cf;color:#6c6038}
+  .lvl.medium{background:#ecd8b4;color:#8a5a17}
+  .lvl.high{background:#e4c1a3;color:#8f3c16}
+  .lvl.info{background:#dfe6dd;color:#42584a}
+
+  .twocol{display:grid;grid-template-columns:1.15fr .85fr;gap:30px;align-items:start}
+  @media(max-width:860px){.twocol{grid-template-columns:1fr}}
+  .note{border-left:3px solid var(--ochre);background:var(--parchment-2);padding:12px 16px;border-radius:0 4px 4px 0;font-size:.9rem;margin:1.2rem 0}
+  .note .lbl{font-family:"JetBrains Mono";font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ochre-deep);display:block;margin-bottom:3px}
+
+  /* ---------- mobile nav ---------- */
+  .topbar{display:none;position:sticky;top:0;z-index:30;background:var(--ink);color:var(--text-light);padding:12px 18px;border-bottom:2px solid var(--ochre);align-items:center;justify-content:space-between}
+  .topbar .glyph{font-family:"Fraunces";font-weight:900;font-size:1.15rem;color:#fbf6ec}
+  .topbar button{background:none;border:1px solid var(--line-dark);color:var(--text-light);font-family:"JetBrains Mono";font-size:.7rem;padding:6px 11px;border-radius:3px;cursor:pointer}
+  @media(max-width:880px){
+    nav.side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .22s ease;background:var(--parchment);box-shadow:0 0 40px rgba(0,0,0,.2)}
+    nav.side.open{transform:translateX(0)}
+    .topbar{display:flex}
+    .shell{display:block}
+    section{padding:46px 24px}
+    .hero-inner{padding:60px 24px 50px}
+  }
+  @media(prefers-reduced-motion:reduce){nav.side{transition:none}.reveal{opacity:1!important;transform:none!important}}
+
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  footer.foot{background:var(--ink);color:var(--text-light-soft);padding:40px 56px;text-align:center;font-family:"JetBrains Mono";font-size:.72rem;letter-spacing:.04em}
+  footer.foot a{color:var(--ochre)}
+  footer.foot .bird{font-family:"Fraunces";font-style:italic;color:var(--text-light);font-size:.95rem;letter-spacing:0;display:block;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="glyph">Lyrebird</span>
+  <button id="navToggle" aria-label="Toggle navigation">☰ Contents</button>
+</div>
+
+<div class="shell">
+  <nav class="side" id="side">
+    <div class="brandmark"><span class="glyph">Lyrebird</span><span class="plate">FIELD&nbsp;GUIDE</span></div>
+    <p class="sub">Internet-services emulation<br>for malware analysis labs</p>
+    <ol>
+      <li><a href="#overview" class="active">Overview</a></li>
+      <li><a href="#pairing">The pairing model</a></li>
+      <li><a href="#services">Service field guide</a></li>
+      <li><a href="#telemetry">Event schema</a></li>
+      <li><a href="#detections">Detection catalog</a></li>
+      <li><a href="#analytics">Behavioural analytics</a></li>
+      <li><a href="#quickstart">Quick start</a></li>
+      <li><a href="#config">Configuration</a></li>
+      <li><a href="#models">Model layer</a></li>
+      <li><a href="#contributing">Contributing</a></li>
+    </ol>
+    <div class="side-foot">
+      GPL-3.0-or-later<br>
+      <a href="https://github.com/cac0ns3c/Lyrebird">github.com/cac0ns3c/Lyrebird</a><br>
+      successor to INetSim
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="hero-inner">
+        <svg class="hero-rule" viewBox="0 0 340 600" fill="none" aria-hidden="true">
+          <g stroke="#c0843f" stroke-width="1">
+            <path d="M170 20 C 80 160, 80 440, 170 580" opacity=".5"/>
+            <path d="M170 20 C 110 160, 110 440, 170 580" opacity=".35"/>
+            <path d="M170 20 C 150 160, 150 440, 170 580" opacity=".25"/>
+            <path d="M170 20 C 230 160, 230 440, 170 580" opacity=".35"/>
+            <path d="M170 20 C 260 160, 260 440, 170 580" opacity=".5"/>
+          </g>
+        </svg>
+        <div class="eyebrow">Defensive&nbsp;·&nbsp;research&nbsp;·&nbsp;isolated&nbsp;lab&nbsp;use</div>
+        <h1>Lyre<span class="tail">bird</span></h1>
+        <p class="thesis">Fake-but-believable network services, so malware in a sandbox keeps talking — and every technique it shows you has a detection waiting.</p>
+        <div class="meta">
+          <span class="chip">async Python</span>
+          <span class="chip">13 services</span>
+          <span class="chip">structured JSONL → SIEM</span>
+          <span class="chip">Sigma + analytics</span>
+          <span class="chip">container-native</span>
+        </div>
+        <div class="specimen-warn">
+          <span class="tag">Lab&nbsp;use<br>only</span>
+          <p>Lyrebird emulates benign services to observe malware in containment. It carries no implant, no command-and-control, and no evasion tooling. Run it on a segmented, non-routable network — never expose it to the internet.</p>
+        </div>
+      </div>
+    </header>
+
+    <section id="overview">
+      <div class="h-num">01 / OVERVIEW</div>
+      <h2>A controlled internet for detonating samples</h2>
+      <p class="lead">When you detonate malware in an isolated sandbox, it tries to reach the internet — to resolve a domain, beacon home, pull a payload, exfiltrate. Cut the network and it goes quiet, and you learn nothing. Lyrebird answers instead.</p>
+      <p>It stands up convincing fakes of the services malware reaches for — HTTP, DNS, SMTP, IRC, and more — so the sample behaves as if it were online while every byte stays inside the lab. Each interaction is recorded as one line of structured JSON, every uploaded payload is captured and hashed, and the whole session becomes evidence you can replay.</p>
+      <p>It's a spiritual successor to <a href="https://www.inetsim.org/">INetSim</a>, whose last release shipped in 2020. Lyrebird keeps the proven model and rebuilds it async-first in Python, with one decisive difference: <strong>detection telemetry is a first-class output, not an afterthought.</strong></p>
+      <div class="twocol">
+        <div>
+          <h3>What makes it different</h3>
+          <ul class="clean">
+            <li><strong>Telemetry built for a SIEM</strong> — one normalized JSON object per interaction, tailable straight into your pipeline.</li>
+            <li><strong>Detections ship with the emulator</strong> — every emulated technique carries a paired Sigma rule or analytic, versioned together.</li>
+            <li><strong>Async core</strong> — asyncio throughout; FastAPI for HTTP, async resolvers elsewhere.</li>
+            <li><strong>Auto lab CA</strong> — TLS handshakes just work; certificates are minted on first run.</li>
+            <li><strong>Container-native</strong> — one <code class="inline">docker compose up</code> on a no-egress network.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Who it's for</h3>
+          <p>Detection engineers building and validating rules against real malware behaviour. Malware analysts who need a sample to keep talking. SOC teams who want lab telemetry that looks like production telemetry.</p>
+          <div class="note"><span class="lbl">Design principle</span>Every offensive technique observed in the lab is anchored to a defensive artifact. If a behaviour can be emulated, its detection ships in the same change.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pairing">
+      <div class="h-num">02 / THE PAIRING MODEL</div>
+      <h2>Technique in, detection out</h2>
+      <p class="lead">The core idea is a loop. A service emulates something malware does, tags the telemetry that matters, and a paired detection keys off that exact tag. The signal and the rule that catches it never drift apart because they're versioned together.</p>
+      <div class="loop">
+        <div class="step"><div class="n">STEP 01</div><h4>Emulate</h4><p>A service answers the sample convincingly so it reveals its full network behaviour.</p></div>
+        <div class="step"><div class="n">STEP 02</div><h4>Capture &amp; tag</h4><p>The interaction becomes a normalized JSON event; notable behaviour gets a tag like <code class="inline">long-label</code>.</p></div>
+        <div class="step"><div class="n">STEP 03</div><h4>Detect</h4><p>A Sigma rule selects on that tag; statistical cases go to a session analytic.</p></div>
+        <div class="step"><div class="n">STEP 04</div><h4>Validate</h4><p>Replay the session against your pipeline to confirm the rule fires as intended.</p></div>
+      </div>
+      <p>Because the detection is written against the same JSONL schema the emulator emits, you can develop and regression-test rules without ever touching live malware infrastructure — the captured session is a fixture.</p>
+    </section>
+
+    <section id="services">
+      <div class="h-num">03 / SERVICE FIELD GUIDE</div>
+      <h2>Thirteen services, each a specimen</h2>
+      <p class="lead">Lyrebird matches and extends INetSim's coverage. Every service answers, captures, and emits — and each is enabled or disabled independently in config.</p>
+      <div class="plates">
+        <div class="plate"><div class="pn">PLATE 01</div><h4>HTTP / HTTPS</h4><div class="port">tcp · 80 / 443</div><p>Catch-all routing on any method or path. Templated responses, fakefile serving, full body capture, auto-TLS.</p><div class="tagline">↳ missing-user-agent · frontable-host</div></div>
+        <div class="plate"><div class="pn">PLATE 02</div><h4>DNS</h4><div class="port">udp · 53</div><p>Answers every query; configurable A/AAAA/TXT, wildcard sinkhole. Logs each lookup.</p><div class="tagline">↳ long-label (DGA / tunneling)</div></div>
+        <div class="plate"><div class="pn">PLATE 03</div><h4>DNS over TCP</h4><div class="port">tcp · 53</div><p>Same sinkhole responder over the TCP transport for large or fallback queries.</p><div class="tagline">↳ long-label</div></div>
+        <div class="plate"><div class="pn">PLATE 04</div><h4>SMTP</h4><div class="port">tcp · 25</div><p>Accepts and captures mail, fake auth, logs the full envelope.</p><div class="tagline">↳ bulk-recipients</div></div>
+        <div class="plate"><div class="pn">PLATE 05</div><h4>POP3</h4><div class="port">tcp · 110</div><p>Fake mailbox; logs credentials and commands as the sample checks mail.</p><div class="tagline">↳ auth capture</div></div>
+        <div class="plate"><div class="pn">PLATE 06</div><h4>IMAP</h4><div class="port">tcp · 143</div><p>Fake mailbox; logs LOGIN credentials and session commands.</p><div class="tagline">↳ auth capture</div></div>
+        <div class="plate"><div class="pn">PLATE 07</div><h4>FTP</h4><div class="port">tcp · 21</div><p>Passive and active mode; captures STOR uploads as hashed artifacts.</p><div class="tagline">↳ upload (exfil / drop)</div></div>
+        <div class="plate"><div class="pn">PLATE 08</div><h4>TFTP</h4><div class="port">udp · 69</div><p>Captures WRQ uploads with a per-transfer id.</p><div class="tagline">↳ upload</div></div>
+        <div class="plate"><div class="pn">PLATE 09</div><h4>IRC</h4><div class="port">tcp · 6667</div><p>Observes classic bot C2 — nick, channel joins, PRIVMSG tasking.</p><div class="tagline">↳ channel-join</div></div>
+        <div class="plate"><div class="pn">PLATE 10</div><h4>NTP</h4><div class="port">udp · 123</div><p>Answers time, with a configurable faketime delta to shift the lab clock.</p><div class="tagline">↳ faketime</div></div>
+        <div class="plate"><div class="pn">PLATE 11</div><h4>TLS (serve)</h4><div class="port">tcp · 443</div><p>Fingerprints JA3/JA4, terminates with the lab cert, serves a placeholder — and correlates SNI vs Host on one connection.</p><div class="tagline">↳ sni-host-mismatch · off by default</div></div>
+        <div class="plate"><div class="pn">PLATE 12</div><h4>TLS capture</h4><div class="port">tcp · 8443</div><p>Lightweight JA3/JA4 tap: fingerprint the ClientHello, then close.</p><div class="tagline">↳ ja3 / ja4 · off by default</div></div>
+        <div class="plate"><div class="pn">PLATE 13</div><h4>TCP sink</h4><div class="port">tcp · extra</div><p>Catch-all for ports without a dedicated service; logs everything sent (INetSim "Dummy").</p><div class="tagline">↳ protocol-on-unexpected-port</div></div>
+      </div>
+      <div class="note"><span class="lbl">Plugin contract</span>Adding a service means subclassing <code class="inline">BaseService</code>, implementing <code class="inline">start()</code> / <code class="inline">stop()</code>, emitting events with <code class="inline">self.emit(...)</code>, and registering the class. That's the whole contract.</div>
+    </section>
+
+    <section id="telemetry">
+      <div class="h-num">04 / EVENT SCHEMA</div>
+      <h2>One line of JSON per interaction</h2>
+      <p class="lead">Everything keys off this schema — the log files, SIEM ingestion, the optional analysis layer, and every Sigma rule. It's the contract; change it deliberately.</p>
+      <pre><span class="c">// labdata/events/&lt;session&gt;.jsonl — one object per line</span>
+{
+  <span class="k">"schema"</span>: <span class="s">"1.0"</span>,
+  <span class="k">"ts"</span>: <span class="s">"2026-06-29T12:00:00.000+00:00"</span>,
+  <span class="k">"session"</span>: <span class="s">"20260629T120000-a1b2c3"</span>,
+  <span class="k">"event_id"</span>: <span class="s">"f3a9…"</span>,
+  <span class="k">"service"</span>: <span class="s">"dns"</span>,        <span class="c">// http | dns | smtp | irc | …</span>
+  <span class="k">"transport"</span>: <span class="s">"udp"</span>,      <span class="c">// tcp | udp</span>
+  <span class="k">"src_ip"</span>: <span class="s">"10.13.37.66"</span>,
+  <span class="k">"src_port"</span>: <span class="p">51000</span>,
+  <span class="k">"dst_port"</span>: <span class="p">53</span>,
+  <span class="k">"event_type"</span>: <span class="s">"request"</span>, <span class="c">// connection | request | auth | capture</span>
+  <span class="k">"summary"</span>: <span class="s">"A evil.example"</span>,
+  <span class="k">"request"</span>:  { <span class="k">"qname"</span>: <span class="s">"evil.example."</span>, <span class="k">"qtype"</span>: <span class="s">"A"</span> },
+  <span class="k">"response"</span>: { <span class="k">"rcode"</span>: <span class="p">0</span>, <span class="k">"answer"</span>: <span class="s">"10.13.37.1"</span> },
+  <span class="k">"artifacts"</span>: [],          <span class="c">// captured payloads, hashed + stored</span>
+  <span class="k">"tags"</span>: [<span class="s">"long-label"</span>]   <span class="c">// what the detections select on</span>
+}</pre>
+      <p>Captured payloads — uploads, mail bodies, raw socket data — are written to <code class="inline">labdata/artifacts/&lt;service&gt;/</code>, SHA-256 hashed, and referenced from the event's <code class="inline">artifacts</code> array. The <code class="inline">tags</code> field is the hinge: it's where a service flags behaviour, and where every rule below looks.</p>
+    </section>
+
+    <section id="detections">
+      <div class="h-num">05 / DETECTION CATALOG</div>
+      <h2>Every technique, its paired rule</h2>
+      <p class="lead">Eight single-event Sigma rules and a correlation rule ship in <code class="inline">detections/sigma/</code>, each selecting on a tag the emulator emits. Levels are shipped defaults — tune to your environment.</p>
+      <div class="det">
+        <table>
+          <thead><tr><th>Detection</th><th>Selects on</th><th>Catches</th><th>Level</th></tr></thead>
+          <tbody>
+            <tr><td>DNS long label</td><td><span class="mono">dns · long-label</span></td><td>DGA / DNS tunneling via long high-entropy labels</td><td><span class="lvl medium">medium</span></td></tr>
+            <tr><td>HTTP no User-Agent</td><td><span class="mono">http · missing-user-agent</span></td><td>Beacons that omit or hard-code a UA</td><td><span class="lvl low">low</span></td></tr>
+            <tr><td>Frontable-host beacon</td><td><span class="mono">host∈CDN + missing-ua</span></td><td>Domain fronting (app-layer tell)</td><td><span class="lvl medium">medium</span></td></tr>
+            <tr><td>SMTP bulk recipients</td><td><span class="mono">smtp · bulk-recipients</span></td><td>Mass-mailer / spam-bot behaviour</td><td><span class="lvl medium">medium</span></td></tr>
+            <tr><td>IRC channel join</td><td><span class="mono">irc · channel-join</span></td><td>Classic botnet command channel</td><td><span class="lvl high">high</span></td></tr>
+            <tr><td>FTP / TFTP upload</td><td><span class="mono">ftp|tftp · upload</span></td><td>Exfil or secondary-payload staging</td><td><span class="lvl medium">medium</span></td></tr>
+            <tr><td>Known-bad JA3/JA4</td><td><span class="mono">tls_capture · ja3/ja4</span></td><td>Malicious TLS client fingerprints</td><td><span class="lvl high">high</span></td></tr>
+            <tr><td>High-frequency beacon</td><td><span class="mono">≥20 req / src_ip / 10m</span></td><td>Correlation: automated beaconing</td><td><span class="lvl medium">medium</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note"><span class="lbl">Bring your own intel</span>The JA3/JA4 rule ships with <em>placeholder</em> fingerprints. Populate it from your own feeds (e.g. abuse.ch JA3, FoxIO/GreyNoise JA4) before relying on it.</div>
+    </section>
+
+    <section id="analytics">
+      <div class="h-num">06 / BEHAVIOURAL ANALYTICS</div>
+      <h2>For the cases a single event can't show</h2>
+      <p class="lead">Timing and content evasions aren't single-event signatures. Two analytics run over a captured session and report the fingerprints those techniques leave behind — detection only; neither generates traffic.</p>
+      <div class="twocol">
+        <div>
+          <h3>lyrebird.beacons</h3>
+          <p>Cadence, jitter, and channel rotation. It measures inter-arrival times per source→target and classifies by coefficient of variation (CV):</p>
+          <ul class="clean">
+            <li><strong>Near-perfect beacon</strong> — CV below 0.10.</li>
+            <li><strong>Jittered beacon</strong> — CV 0.10–0.50, the bounded mean ± jitter band, distinct from random traffic's high CV.</li>
+            <li><strong>Channel rotation</strong> — one source cycling ≥ 3 targets over ≥ 6 hits.</li>
+          </ul>
+          <pre><span class="c"># defensive pair to beacon-jitter / rotation</span>
+python -m lyrebird.beacons \
+  --session labdata/events/&lt;id&gt;.jsonl</pre>
+        </div>
+        <div>
+          <h3>lyrebird.mimicry</h3>
+          <p>Traffic mimicry and encryption tells. It flags:</p>
+          <ul class="clean">
+            <li><strong>protocol-on-unexpected-port</strong> — known protocol bytes on the wrong port (tunneling).</li>
+            <li><strong>possible-domain-fronting</strong> — frontable Host + beacon-like request.</li>
+            <li><strong>browser-ua-but-bot</strong> — browser UA, non-browser behaviour.</li>
+            <li><strong>encrypted-body</strong> — near-maximal Shannon entropy (~8 bits/byte).</li>
+          </ul>
+          <pre><span class="c"># defensive pair to mimicry / encryption</span>
+python -m lyrebird.mimicry \
+  --session labdata/events/&lt;id&gt;.jsonl \
+  --data-dir labdata</pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="quickstart">
+      <div class="h-num">07 / QUICK START</div>
+      <h2>Boot a lab in one command</h2>
+      <p class="lead">Run it directly, or containerized on an internal network with no outbound route.</p>
+      <h3>Directly</h3>
+      <pre><span class="k">pip</span> install -r requirements.txt
+<span class="k">python</span> -m lyrebird --config config/lyrebird.yaml</pre>
+      <h3>Containerized — recommended</h3>
+      <pre><span class="c"># compose network is `internal: true` — no egress by default</span>
+<span class="k">cd</span> docker &amp;&amp; <span class="k">docker</span> compose up --build</pre>
+      <p>Point your analysis VM's default gateway and DNS at the Lyrebird host, detonate the sample, and watch the events stream in. Toggle services at launch without editing config:</p>
+      <pre><span class="k">python</span> -m lyrebird --disable smtp,ntp
+<span class="k">python</span> -m lyrebird --enable http,dns --no-banner</pre>
+    </section>
+
+    <section id="config">
+      <div class="h-num">08 / CONFIGURATION</div>
+      <h2>One readable YAML, sane defaults</h2>
+      <p class="lead">Any omitted value falls back to a built-in default, so the file can be as small as you like — even empty gives a working lab. Responses are customizable per service without touching code.</p>
+      <pre><span class="k">bind_address</span>: <span class="s">"0.0.0.0"</span>
+<span class="k">data_dir</span>: <span class="s">"./labdata"</span>
+<span class="k">echo</span>: <span class="p">true</span>            <span class="c"># mirror events to stdout live</span>
+
+<span class="k">tls</span>:
+  <span class="k">enabled</span>: <span class="p">true</span>        <span class="c"># auto-generate a lab CA + leaf certs</span>
+
+<span class="k">services</span>:
+  <span class="k">http</span>:
+    <span class="k">enabled</span>: <span class="p">true</span>
+    <span class="k">port</span>: <span class="p">80</span>
+    <span class="k">responses</span>:           <span class="c"># first match wins → fakefile → model → default</span>
+      <span class="k">http</span>:
+        - <span class="k">path</span>: <span class="s">"/gate.php"</span>
+          <span class="k">method</span>: <span class="s">"POST"</span>
+          <span class="k">body</span>: <span class="s">'{"status":"ok","task":"none"}'</span>
+  <span class="k">dns</span>:
+    <span class="k">enabled</span>: <span class="p">true</span>
+    <span class="k">default_a</span>: <span class="s">"10.13.37.1"</span>   <span class="c"># sinkhole for unmatched A queries</span>
+    <span class="k">responses</span>:
+      <span class="k">dns</span>:
+        - <span class="k">qname</span>: <span class="s">"*.evil-c2.com"</span>
+          <span class="k">answer</span>: <span class="s">"10.13.37.66"</span>     <span class="c"># point a family at one sink host</span></pre>
+      <p>Response resolution is <strong>operator rule → fakefile → model responder (if enabled) → built-in default</strong>, and the chosen source is recorded on every event. Fakefile serving is path-traversal protected.</p>
+    </section>
+
+    <section id="models">
+      <div class="h-num">09 / MODEL LAYER</div>
+      <h2>Optional analysis, never required</h2>
+      <p class="lead">A vendor-agnostic model layer can triage a captured session into a verdict plus candidate Sigma ideas. It's optional and air-gap-friendly — selecting <code class="inline">local</code> keeps all data on-host.</p>
+      <div class="det">
+        <table>
+          <thead><tr><th>Provider</th><th>Backend</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">anthropic</span></td><td>Claude</td></tr>
+            <tr><td><span class="mono">openai</span></td><td>OpenAI</td></tr>
+            <tr><td><span class="mono">gemini</span></td><td>Google Gemini</td></tr>
+            <tr><td><span class="mono">local</span></td><td>any OpenAI-compatible server — Ollama, LM Studio, llama.cpp, vLLM</td></tr>
+            <tr><td><span class="mono">mock</span></td><td>offline deterministic stub for tests</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><span class="k">python</span> -m lyrebird.analyze \
+  --session labdata/events/&lt;id&gt;.jsonl --provider local</pre>
+      <div class="note"><span class="lbl">Untrusted input is treated as untrusted</span>Captured traffic is adversary-controlled, so anything reaching a model is a prompt-injection surface. The sanitizer defangs injection markers, frames captured data as inert observations behind a canary token, and validates model output against a schema. Nothing captured is ever executed — services only serve or log bytes.</div>
+    </section>
+
+    <section id="contributing">
+      <div class="h-num">10 / CONTRIBUTING</div>
+      <h2>Stay on the defensive side of the line</h2>
+      <p class="lead">Lyrebird is a defensive tool, and contributions keep it there. The emulator responds to malware; it never becomes the malware.</p>
+      <div class="twocol">
+        <div>
+          <h3>In scope</h3>
+          <ul class="clean">
+            <li>New service emulators and response profiles.</li>
+            <li>Detection analytics, Sigma rules, fixtures.</li>
+            <li>Docs, tests, packaging.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Out of scope</h3>
+          <ul class="clean">
+            <li>Implants, agents, beacon payloads.</li>
+            <li>Real command-and-control capability.</li>
+            <li>Evasion tooling aimed at defeating production defenses.</li>
+          </ul>
+        </div>
+      </div>
+      <p>The bar for a PR: tests green on Python 3.10–3.12, Sigma lint passing if you touched detections, new behaviour shipping with its paired detection, and an SPDX header on every file. If a change would make Lyrebird useful for attacking rather than observing, it's out of scope.</p>
+      <pre><span class="k">python</span> -m venv .venv &amp;&amp; . .venv/bin/activate
+<span class="k">pip</span> install -r requirements.txt pytest
+<span class="k">PYTHONPATH</span>=src python -m pytest tests/ -q      <span class="c"># all green</span>
+<span class="k">PYTHONPATH</span>=src python scripts/lint_sigma.py    <span class="c"># detection lint</span></pre>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <span class="bird">Named for the bird that flawlessly mimics any sound it hears.</span>
+  Lyrebird · GPL-3.0-or-later · <a href="https://github.com/cac0ns3c/Lyrebird">github.com/cac0ns3c/Lyrebird</a><br>
+  Authorized, isolated lab use only.
+</footer>
+
+<script>
+  // mobile nav
+  var side=document.getElementById('side'),tgl=document.getElementById('navToggle');
+  if(tgl){tgl.addEventListener('click',function(){side.classList.toggle('open');});}
+  side.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){side.classList.remove('open');});});
+
+  // scrollspy
+  var links=[].slice.call(document.querySelectorAll('nav.side a'));
+  var map={};links.forEach(function(l){map[l.getAttribute('href').slice(1)]=l;});
+  var spy=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(l){l.classList.remove('active');});
+        if(map[e.target.id])map[e.target.id].classList.add('active');
+      }
+    });
+  },{rootMargin:'-45% 0px -50% 0px'});
+  document.querySelectorAll('section[id]').forEach(function(s){spy.observe(s);});
+
+  // reveal on scroll
+  var rev=document.querySelectorAll('section');
+  rev.forEach(function(s){s.classList.add('reveal');});
+  var ro=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');ro.unobserve(e.target);}});
+  },{rootMargin:'0px 0px -10% 0px'});
+  rev.forEach(function(s){ro.observe(s);});
+</script>
+</body>
+</html>
