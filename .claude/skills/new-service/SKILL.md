@@ -190,7 +190,6 @@ loop, so poll the JSONL log until the event appears.
 '<signal-tag>' detection tag on the suspicious behaviour."""
 import asyncio
 import json
-import socket
 import time
 from pathlib import Path
 import sys
@@ -222,32 +221,49 @@ def test_<name>_emits_signal_tag(tmp_path):
     sink = EventSink(session="t", log_path=log, echo=False)
     svc = <Name>Service(cfg={"port": 0}, sink=sink, bind_address="127.0.0.1",
                         data_dir=tmp_path, tls={})
-    asyncio.run(svc.start())
-    port = svc._server.sockets[0].getsockname()[1]
-    try:
-        c = socket.create_connection(("127.0.0.1", port), timeout=5)
-        c.sendall(b"<bytes that trigger the suspicious behaviour>\r\n")
-        c.close()
-        events = _wait_for_events(log)
-    finally:
-        asyncio.run(svc.stop())
-        sink.close()
+
+    async def scenario():
+        # Client and server must share ONE event loop: an asyncio.start_server
+        # service stops serving the instant its loop closes, so the thread-based
+        # TLS test's `asyncio.run(start())` + blocking socket would hang here.
+        # Drive the whole exchange inside a single asyncio.run().
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(b"<bytes that trigger the suspicious behaviour>\r\n")
+        await writer.drain()
+        await reader.read(64)
+        writer.close()
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
     assert events, "no event was flushed"
     assert any("<signal-tag>" in e.get("tags", []) for e in events)
 ```
 
+(For the **UDP** path there is no persistent server object — drive the datagram
+exchange similarly inside one `asyncio.run()`, or follow `tests/test_dns_*`.)
+
 ## Verify before reporting done
 
-Run all three and make them green:
+Run all of these and make them green:
 
 ```bash
-PYTHONPATH=src python -m pytest tests/test_<name>_service.py tests/test_detection_pairing.py tests/test_services.py -q
+# A new service/rule changes the generated catalog. Regenerate it FIRST, or the
+# REFERENCE.md drift guard (tests/test_reference.py) fails.
+PYTHONPATH=src python scripts/gen_reference.py
+# Run the FULL suite — it includes the pairing guard AND the reference guard, so
+# the three targeted files alone are not enough.
+PYTHONPATH=src python -m pytest tests/ -q
 PYTHONPATH=src python scripts/lint_sigma.py
 PYTHONPATH=src python -m lyrebird --help   # import smoke
 ```
 
 If the pairing guard fails, it names the exact tag — either it needs the Sigma
 rule (signal) or a `CONTEXT_OR_ANALYTIC_TAGS` entry with a reason (context).
+If the reference guard fails, you forgot to run `gen_reference.py` above.
 Then summarize: the files created, the tag→rule pair, and the green checks. Do
 not commit unless the operator asks.
 
