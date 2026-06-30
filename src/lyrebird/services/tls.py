@@ -23,7 +23,7 @@ import socket
 import ssl
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, wait as futures_wait
 from typing import Any
 
 from ..base import BaseService
@@ -42,6 +42,10 @@ class TlsService(BaseService):
         self._sock: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._pool = ThreadPoolExecutor(max_workers=16)
+        self._inflight: set[Future] = set()
+        self._inflight_lock = threading.Lock()
+        # How long stop() waits for in-flight captures to drain before giving up.
+        self._drain_timeout = float(self.cfg.get("drain_timeout", 5.0))
         self._stop = False
         self._ctx: ssl.SSLContext | None = None
 
@@ -124,7 +128,17 @@ class TlsService(BaseService):
                 conn, addr = self._sock.accept()  # type: ignore[union-attr]
             except OSError:
                 break
-            self._pool.submit(self._handle, conn, addr)
+            fut = self._pool.submit(self._handle, conn, addr)
+            self._track(fut)
+
+    def _track(self, fut: Future) -> None:
+        with self._inflight_lock:
+            self._inflight.add(fut)
+        fut.add_done_callback(self._untrack)
+
+    def _untrack(self, fut: Future) -> None:
+        with self._inflight_lock:
+            self._inflight.discard(fut)
 
     async def start(self) -> None:
         self._ctx = self._build_ctx()
@@ -144,4 +158,13 @@ class TlsService(BaseService):
                 self._sock.close()
         except Exception:
             pass
-        self._pool.shutdown(wait=False)
+        if self._thread:
+            self._thread.join(timeout=1.0)
+        # Let in-flight captures (MSG_PEEK + handshake + recv) finish so their
+        # events are flushed, but bound the wait so shutdown can't hang on a
+        # stuck connection. Anything still running past the deadline is cancelled.
+        with self._inflight_lock:
+            pending = set(self._inflight)
+        if pending:
+            futures_wait(pending, timeout=self._drain_timeout)
+        self._pool.shutdown(wait=False, cancel_futures=True)
