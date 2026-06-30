@@ -38,6 +38,7 @@ src/lyrebird/
   config.py        # YAML loading + defaults
   base.py          # BaseService plugin contract
   certs.py / tls.py# lab CA; ClientHello parsing + JA3/JA4
+  profiles.py      # operator-defined response profiles (INetSim fakefiles successor)
   orchestrator.py  # loads config, runs enabled services (REGISTRY)
   cli.py           # `python -m lyrebird`
   analyze.py       # optional model-assisted session triage
@@ -45,7 +46,7 @@ src/lyrebird/
   mimicry.py       # traffic-mimicry / encryption-tell analytic
   services/        # http, dns, dns_tcp, smtp, pop3, imap, ftp, tftp,
                    #   irc, ntp, tls, tls_capture, tcp_sink
-  models/          # anthropic, openai, gemini, local, mock + sanitize
+  models/          # anthropic, openai, gemini, local, mock; registry + responder + sanitize
 detections/sigma/  # Sigma rules, paired per service
 scripts/lint_sigma.py
 docker/  tests/  config/lyrebird.yaml
@@ -63,6 +64,9 @@ PYTHONPATH=src python scripts/lint_sigma.py
 
 # run a lab
 python -m lyrebird --config config/lyrebird.yaml
+
+# regenerate REFERENCE.md (event schema + detection catalog) after schema/detection changes
+PYTHONPATH=src python scripts/gen_reference.py
 ```
 
 ## The bar for a change
