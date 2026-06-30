@@ -18,6 +18,25 @@ from lyrebird.orchestrator import REGISTRY  # noqa: E402
 from lyrebird.services.tls import TlsService  # noqa: E402
 
 
+def _wait_for_events(log: Path, timeout: float = 10.0):
+    """Poll the JSONL log until at least one event is flushed, or timeout.
+
+    The tls service handles each connection on a background thread pool, so the
+    event is emitted asynchronously relative to the client socket closing.
+    EventSink flushes per emit(), so polling the file is a deterministic
+    synchronization point — far more reliable than a fixed sleep on a loaded
+    CI runner.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if log.exists():
+            lines = [l for l in log.read_text().splitlines() if l.strip()]
+            if lines:
+                return [json.loads(l) for l in lines]
+        time.sleep(0.05)
+    return []
+
+
 def test_tls_service_registered():
     assert "tls" in REGISTRY
 
@@ -40,12 +59,14 @@ def test_tls_fingerprint_and_same_connection_mismatch(tmp_path):
         s.sendall(b"GET / HTTP/1.1\r\nHost: evil-c2.example\r\n\r\n")
         s.recv(128)
         s.close()
-        time.sleep(0.5)
+        # Wait for the background handler to flush its event rather than
+        # racing a fixed sleep (the handler runs in a thread pool, so its
+        # timing varies on loaded CI runners).
+        events = _wait_for_events(log, timeout=10.0)
     finally:
         asyncio.run(svc.stop())
         sink.close()
 
-    events = [json.loads(l) for l in log.read_text().splitlines() if l.strip()]
     assert events, "tls service emitted no events"
     e = events[0]
     assert e["request"]["sni"] == "front.example.com"
