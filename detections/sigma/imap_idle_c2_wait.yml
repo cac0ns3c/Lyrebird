@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: IMAP IDLE Used By Sample (Possible Mailbox C2 Long-Poll)
+id: 973ea05b-4ff7-4f80-9115-7b119ab8e253
+status: experimental
+description: >
+  The Lyrebird IMAP emulator pushes an unsolicited EXISTS to an idling client to
+  simulate the server delivering tasking, and tags each IDLE entry 'imap-idle'.
+  In an isolated single-sample lab there are no real mail clients, so a sample
+  parking on IMAP IDLE to receive pushed data is a mailbox-as-C2 long-poll tell.
+  Pair: services/imap.py tags such connections 'imap-idle' (with idle_seconds,
+  pushed, and ended recorded).
+author: Lyrebird
+date: 2026/06/30
+logsource:
+  product: lyrebird
+  service: imap
+detection:
+  selection:
+    service: 'imap'
+    tags|contains: 'imap-idle'
+  condition: selection
+fields:
+  - src_ip
+  - request.idle_seconds
+  - request.pushed
+  - request.ended
+falsepositives:
+  - Legitimate mail clients (Thunderbird, Outlook, mobile) use IDLE for push and
+    will trip this outside a single-sample analysis lab
+level: medium
