@@ -10,3 +10,6 @@ venv/
 .pytest_cache/
 .mypy_cache/
 *.log
+
+# Personal Claude Code settings (shared config lives in .claude/settings.json)
+.claude/settings.local.json
