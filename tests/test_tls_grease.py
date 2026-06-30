@@ -103,3 +103,50 @@ def test_fp_event_fields_subset():
     data = build_client_hello([0x1301], [supported_versions_ext([0x0304])])
     fields = fp_event_fields(fingerprint(data))
     assert set(fields) == {"ja4_r", "groups", "sig_algs", "supported_versions", "grease_present"}
+
+
+import asyncio  # noqa: E402
+import json     # noqa: E402
+import time     # noqa: E402
+
+from lyrebird.events import EventSink  # noqa: E402
+from lyrebird.services.tls_capture import TlsCaptureService  # noqa: E402
+
+
+def _wait_for_events(log: Path, timeout: float = 10.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if log.exists():
+            lines = [l for l in log.read_text().splitlines() if l.strip()]
+            if lines:
+                return [json.loads(l) for l in lines]
+        time.sleep(0.05)
+    return []
+
+
+def test_tls_capture_emits_no_grease_tag(tmp_path):
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = TlsCaptureService(cfg={"port": 0}, sink=sink, bind_address="127.0.0.1",
+                            data_dir=tmp_path, tls={})
+    hello = build_client_hello([0x1301, 0x1302], [supported_versions_ext([0x0304])])
+
+    async def scenario():
+        # tls_capture is asyncio.start_server: client+server share ONE loop.
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(hello)
+        await writer.drain()
+        await reader.read(64)   # service sends a TLS alert, then closes
+        writer.close()
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    assert events, "no event flushed"
+    ev = events[0]
+    assert "no-grease" in ev.get("tags", [])
+    assert ev["request"]["grease_present"] is False
+    assert ev["request"]["ja4_r"]

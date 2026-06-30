@@ -18,7 +18,7 @@ import asyncio
 from typing import Any
 
 from ..base import BaseService
-from ..tls import fingerprint
+from ..tls import fingerprint, fp_event_fields
 
 
 class TlsCaptureService(BaseService):
@@ -38,14 +38,18 @@ class TlsCaptureService(BaseService):
 
         fp = fingerprint(data) if data else None
         if fp:
+            tags = ["tls", "fingerprint"]
+            if fp.get("no_grease_signal"):
+                tags.append("no-grease")
             self.emit(
                 transport="tcp", src_ip=peer[0], src_port=peer[1], dst_port=port,
                 event_type="request",
                 summary=f"tls hello ja4={fp['ja4']} sni={fp.get('sni')}",
                 request={"sni": fp.get("sni"), "alpn": fp.get("alpn"),
                          "ja3": fp["ja3"], "ja4": fp["ja4"],
-                         "cipher_count": fp["cipher_count"]},
-                tags=["tls", "fingerprint"])
+                         "cipher_count": fp["cipher_count"],
+                         **fp_event_fields(fp)},
+                tags=tags)
         else:
             self.emit(
                 transport="tcp", src_ip=peer[0], src_port=peer[1], dst_port=port,

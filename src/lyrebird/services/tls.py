@@ -27,7 +27,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, wait as futures_wait
 from typing import Any
 
 from ..base import BaseService
-from ..tls import fingerprint
+from ..tls import fingerprint, fp_event_fields
 
 _RESPONSE = (b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
              b"Content-Length: 2\r\nConnection: close\r\n\r\nOK")
@@ -105,6 +105,8 @@ class TlsService(BaseService):
                             and sni.split(":")[0].lower() != host.split(":")[0].lower())
             if mismatch:
                 tags.append("sni-host-mismatch")
+            if fp and fp.get("no_grease_signal"):
+                tags.append("no-grease")
             self.emit(
                 transport="tcp", src_ip=addr[0], src_port=addr[1], dst_port=port,
                 event_type="request",
@@ -112,7 +114,8 @@ class TlsService(BaseService):
                          + (" MISMATCH" if mismatch else "")),
                 request={"sni": sni, "host": host, "http": method_path,
                          "ja3": fp.get("ja3") if fp else None,
-                         "ja4": fp.get("ja4") if fp else None},
+                         "ja4": fp.get("ja4") if fp else None,
+                         **(fp_event_fields(fp) if fp else {})},
                 tags=tags)
         except (ssl.SSLError, OSError):
             pass
