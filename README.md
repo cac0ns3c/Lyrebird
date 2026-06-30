@@ -62,6 +62,10 @@ Each interaction is one line of JSON:
 Events land in `labdata/events/<session>.jsonl`; captured payloads in
 `labdata/artifacts/<service>/`.
 
+The full field-by-field event schema and the complete detection catalog are in
+[`REFERENCE.md`](REFERENCE.md) — generated from `events.py` and the Sigma rules,
+so it never drifts. Regenerate with `python scripts/gen_reference.py`.
+
 ## Services
 
 | Service | Transport | Status | Notes |
