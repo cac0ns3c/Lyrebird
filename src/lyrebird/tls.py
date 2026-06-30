@@ -155,19 +155,18 @@ def _sha12(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()[:12]
 
 
-def ja4(ch: ClientHello, protocol: str = "t") -> str:
-    """Return the JA4 fingerprint (FoxIO, BSD-3-Clause algorithm)."""
+def _ja4_parts(ch: ClientHello, protocol: str = "t") -> tuple[str, str, str]:
+    """Compute the three JA4 components before b/c are hashed: (ja4_a, b_raw, c_raw)."""
     ciphers = _no_grease(ch.ciphers)
     exts = _no_grease(ch.extensions)
 
-    # version: highest from supported_versions if present, else legacy
     sv = _no_grease(ch.supported_versions)
     ver_num = max(sv) if sv else ch.legacy_version
     ver = _JA4_VER.get(ver_num, "00")
 
     sni = "d" if EXT_SNI in ch.extensions else "i"
     cc = min(len(ciphers), 99)
-    ec = min(len(exts), 99)           # count includes SNI + ALPN
+    ec = min(len(exts), 99)
     if ch.alpn:
         a = ch.alpn[0]
         alpn = (a[0] + a[-1]) if a else "00"
@@ -175,16 +174,25 @@ def ja4(ch: ClientHello, protocol: str = "t") -> str:
         alpn = "00"
     ja4_a = f"{protocol}{ver}{sni}{cc:02d}{ec:02d}{alpn}"
 
-    ja4_b = _sha12(",".join(f"{c:04x}" for c in sorted(ciphers)))
+    b_raw = ",".join(f"{c:04x}" for c in sorted(ciphers))
 
-    # JA4_c: sorted extensions with SNI(0000) + ALPN(0010) removed, then sig algs
     ext_for_c = sorted(e for e in exts if e not in (EXT_SNI, EXT_ALPN))
-    c_str = ",".join(f"{e:04x}" for e in ext_for_c)
+    c_raw = ",".join(f"{e:04x}" for e in ext_for_c)
     if ch.sig_algs:
-        c_str += "_" + ",".join(f"{a:04x}" for a in ch.sig_algs)
-    ja4_c = _sha12(c_str)
+        c_raw += "_" + ",".join(f"{a:04x}" for a in ch.sig_algs)
+    return ja4_a, b_raw, c_raw
 
-    return f"{ja4_a}_{ja4_b}_{ja4_c}"
+
+def ja4(ch: ClientHello, protocol: str = "t") -> str:
+    """Return the JA4 fingerprint (FoxIO, BSD-3-Clause algorithm)."""
+    a, b_raw, c_raw = _ja4_parts(ch, protocol)
+    return f"{a}_{_sha12(b_raw)}_{_sha12(c_raw)}"
+
+
+def ja4_raw(ch: ClientHello, protocol: str = "t") -> str:
+    """Return the raw JA4 (ja4_r): same prefix, b/c lists left unhashed."""
+    a, b_raw, c_raw = _ja4_parts(ch, protocol)
+    return f"{a}_{b_raw}_{c_raw}"
 
 
 def fingerprint(data: bytes) -> Optional[dict]:
