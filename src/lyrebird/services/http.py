@@ -29,6 +29,14 @@ from ..profiles import Profiles
 # any specific product (which would just create fingerprinting noise).
 _DEFAULT_BODY = b"<html><head><title>It works</title></head><body>OK</body></html>"
 
+# Library/automation User-Agent substrings (lowercased) — a hardcoded or
+# default-library UA instead of a real browser string is a classic beacon tell.
+_SUSPICIOUS_UA = (
+    "python-requests", "python-urllib", "urllib", "curl/", "wget",
+    "go-http-client", "libwww-perl", "powershell", "winhttp", "microsoft bits",
+    "okhttp", "java/", "axios", "node-fetch", "httpclient", "ruby",
+)
+
 
 class HttpService(BaseService):
     name = "http"
@@ -74,6 +82,8 @@ class HttpService(BaseService):
         ua = request.headers.get("user-agent", "")
         if not ua:
             tags.append("missing-user-agent")
+        elif any(s in ua.lower() for s in _SUSPICIOUS_UA):
+            tags.append("suspicious-user-agent")
         if request.method in ("POST", "PUT") and body:
             tags.append("data-out")
 

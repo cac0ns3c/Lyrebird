@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: HTTP Request With Automation User-Agent To Lab Emulator (Possible Beacon)
+id: 05463cf3-899e-4cb6-b995-3bb6350b6433
+status: experimental
+description: >
+  Malware commonly beacons with a hardcoded or library-default User-Agent —
+  python-requests, curl, wget, Go-http-client, WinHTTP, Microsoft BITS,
+  PowerShell, okhttp, Java, etc. — rather than a real browser string. The HTTP
+  emulator classifies such requests and tags them 'suspicious-user-agent'.
+  Complements the missing-user-agent rule, which covers the no-UA case. Pair:
+  services/http.py matches the UA against a known-automation list.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: http
+detection:
+  selection:
+    service: 'http'
+    tags|contains: 'suspicious-user-agent'
+  condition: selection
+fields:
+  - src_ip
+  - request.host
+  - request.path
+  - request.headers
+falsepositives:
+  - Legitimate CLI tools or SDKs running in the lab (uncommon for a sample under analysis)
+level: medium

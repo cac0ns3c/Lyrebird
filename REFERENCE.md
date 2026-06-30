@@ -56,6 +56,7 @@ Levels are shipped defaults — tune to your environment.
 | File Upload To Lab Emulator Over FTP/TFTP (Possible Exfil or Drop) | `—` | `tags=upload` | medium |
 | HTTP Request With Missing User-Agent To Lab Emulator (Possible Beacon) | `http` | `tags=missing-user-agent` | low |
 | Beacon-Like HTTP Request To Frontable CDN Host (Possible Domain Fronting) | `http` | `tags=missing-user-agent` | medium |
+| HTTP Request With Automation User-Agent To Lab Emulator (Possible Beacon) | `http` | `tags=suspicious-user-agent` | medium |
 | IRC Channel Join Observed By Lab Emulator (Possible Botnet C2) | `irc` | `tags=channel-join` | high |
 | Bulk-Recipient Mail Captured By Lab Emulator (Possible Mass Mailer) | `smtp` | `tags=bulk-recipients` | medium |
 | Known-Bad TLS Client Fingerprint (JA3/JA4) Seen By Emulator | `tls_capture` | `request.ja3=REPLACE_WITH_KNOWN_BAD_JA3; request.ja4=REPLACE_WITH_KNOWN_BAD_JA4` | high |
