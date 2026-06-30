@@ -1,0 +1,90 @@
+# Lyrebird configuration.
+# Any value omitted falls back to a built-in default, so this file can be as
+# small as you like. Run inside an isolated lab network only.
+
+bind_address: "0.0.0.0"
+data_dir: "./labdata"
+session: null          # auto-generated timestamp id if null
+echo: true             # mirror events to stdout as they happen
+
+tls:
+  enabled: true
+  ca_dir: "./labdata/ca"
+
+services:
+  http:
+    enabled: true
+    port: 80
+    tls_port: 443
+    # ---- response customization (first match wins; else fakefile; else default) ----
+    responses:
+      http:
+        - path: "/gate.php"          # glob; matched against the URL path
+          method: "POST"             # glob; * = any
+          status: 200
+          content_type: "application/json"
+          body: '{"status":"ok","task":"none"}'
+        - path: "/*.exe"             # serve a benign placeholder for EXE pulls
+          status: 200
+          content_type: "application/octet-stream"
+          body_file: "fakefiles/stub.bin"   # relative to data_dir
+      # Optional: serve real files by URL path from this directory.
+      fakefiles_dir: "fakefiles"
+  dns:
+    enabled: true
+    port: 53
+    default_a: "10.13.37.1"          # sinkhole address for every unmatched A query
+    default_aaaa: "::1"
+    responses:
+      dns:
+        - qname: "*.evil-c2.com"     # glob over the queried name
+          qtype: "A"
+          answer: "10.13.37.66"      # point this family at a specific sink host
+        - qname: "time.windows.com"
+          qtype: "A"
+          answer: "10.13.37.1"
+  smtp:
+    enabled: true
+    port: 25
+  pop3:
+    enabled: true
+    port: 110
+  imap:
+    enabled: true
+    port: 143
+  dns_tcp:
+    enabled: true
+    port: 53                         # DNS over TCP (separate transport from UDP 53)
+  tls:
+    enabled: false                   # fingerprint + terminate + serve HTTPS (JA3/JA4,
+    port: 443                         # same-connection SNI-vs-Host). Use INSTEAD of the
+                                      # HTTP TLS terminator on 443.
+  tls_capture:
+    enabled: false                   # lightweight JA3/JA4 tap (fingerprint then close)
+    port: 8443
+  ftp:
+    enabled: true
+    port: 21
+  tftp:
+    enabled: true
+    port: 69
+  irc:
+    enabled: true
+    port: 6667
+  ntp:
+    enabled: true
+    port: 123
+    faketime_delta: 0                # seconds to shift the lab clock (e.g. 31536000 = +1y)
+  tcp_sink:
+    enabled: true
+    ports: [8080, 1080]        # catch-all for ports without a dedicated service
+
+# Model layer — analysis (python -m lyrebird.analyze) and optional responses.
+models:
+  provider: "local"                  # anthropic | openai | gemini | local | mock
+  model: null                        # null = provider default
+  base_url: "http://localhost:11434/v1"   # local provider (Ollama-compatible)
+  respond:
+    enabled: false                   # OFF by default; templates are preferred.
+                                     # When true, unmatched HTTP requests get a
+                                     # model-generated *benign placeholder* body.

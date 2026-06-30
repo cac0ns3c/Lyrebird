@@ -1,0 +1,26 @@
+title: File Upload To Lab Emulator Over FTP/TFTP (Possible Exfil or Drop)
+id: 2c3d4e5f-6071-4829-ab3c-4d5e6f708192
+status: experimental
+description: >
+  A sample uploading a file to the Lyrebird FTP or TFTP emulator is consistent with
+  data exfiltration or staging a secondary payload. Pair: services/ftp.py and
+  services/tftp.py tag captured uploads 'upload' and store them as artifacts.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+detection:
+  selection:
+    service:
+      - 'ftp'
+      - 'tftp'
+    tags|contains: 'upload'
+  condition: selection
+fields:
+  - src_ip
+  - service
+  - request.filename
+  - request.size
+falsepositives:
+  - Benign file transfer tooling under test
+level: medium

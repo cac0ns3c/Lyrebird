@@ -1,0 +1,24 @@
+title: IRC Channel Join Observed By Lab Emulator (Possible Botnet C2)
+id: 3d4e5f60-7182-4930-bc4d-5e6f70819203
+status: experimental
+description: >
+  IRC remains a classic botnet command channel. A sample that completes an IRC
+  handshake and joins a channel against the Lyrebird IRC emulator is exhibiting
+  likely C2 behaviour. Pair: services/irc.py tags joins 'channel-join' and logs
+  the channel plus any PRIVMSG tasking.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: irc
+detection:
+  selection:
+    service: 'irc'
+    tags|contains: 'channel-join'
+  condition: selection
+fields:
+  - src_ip
+  - request.channel
+falsepositives:
+  - Legitimate IRC clients (uncommon for a sample under analysis)
+level: high

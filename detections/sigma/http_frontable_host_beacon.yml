@@ -1,0 +1,31 @@
+title: Beacon-Like HTTP Request To Frontable CDN Host (Possible Domain Fronting)
+id: 5f607182-9304-4b52-de6f-708192031425
+status: experimental
+description: >
+  A request to the HTTP emulator whose Host header points at a frontable CDN edge
+  while lacking a User-Agent is a domain-fronting tell. Confirm by comparing SNI
+  vs Host in packet capture; `python -m lyrebird.mimicry` flags this app-layer
+  heuristic. Extend the host list to your environment.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: http
+detection:
+  selection_host:
+    request.host|endswith:
+      - 'cloudfront.net'
+      - 'azureedge.net'
+      - 'fastly.net'
+      - 'googleapis.com'
+      - 'windows.net'
+  selection_beacon:
+    tags|contains: 'missing-user-agent'
+  condition: selection_host and selection_beacon
+fields:
+  - src_ip
+  - request.host
+  - request.path
+falsepositives:
+  - Legitimate apps that call CDN-hosted APIs without a UA (uncommon under analysis)
+level: medium

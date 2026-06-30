@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: Known-Bad TLS Client Fingerprint (JA3/JA4) Seen By Emulator
+id: 60718293-a405-4c63-ef70-819203142536
+status: experimental
+description: >
+  The tls_capture service records a JA3 and JA4 for each ClientHello. This rule
+  matches those fingerprints against a blocklist of values tied to malware /
+  offensive tooling. Populate the lists from your own threat intel (e.g. abuse.ch
+  JA3 feeds, FoxIO/GreyNoise JA4 sets) — the entries below are placeholders.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: tls_capture
+detection:
+  selection_ja3:
+    request.ja3:
+      - 'REPLACE_WITH_KNOWN_BAD_JA3'
+  selection_ja4:
+    request.ja4:
+      - 'REPLACE_WITH_KNOWN_BAD_JA4'
+  condition: selection_ja3 or selection_ja4
+fields:
+  - src_ip
+  - request.ja3
+  - request.ja4
+  - request.sni
+falsepositives:
+  - Shared TLS stacks; validate fingerprints against current intel
+level: high

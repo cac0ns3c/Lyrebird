@@ -1,0 +1,24 @@
+services:
+  lyrebird:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: lyrebird
+    # Attach to an ISOLATED, non-routable lab network. Do not expose to the
+    # internet. The malware VM should route its traffic here (gateway/DNS = this host).
+    networks:
+      lyrebird:
+        ipv4_address: 10.13.37.53
+    cap_add:
+      - NET_BIND_SERVICE        # bind privileged ports without full root
+    volumes:
+      - ./labdata:/app/labdata  # captured artifacts + JSONL events land here
+    restart: unless-stopped
+
+networks:
+  lyrebird:
+    driver: bridge
+    internal: true              # no outbound route — containment by default
+    ipam:
+      config:
+        - subnet: 10.13.37.0/24

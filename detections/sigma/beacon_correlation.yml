@@ -1,0 +1,35 @@
+# A coarse SIEM-side companion to lyrebird.beacons. Timing/jitter analysis is
+# statistical and lives in the analytic; this catches the high-frequency case.
+title: Repeated Requests From Single Source To Emulator (Beacon Base)
+name: lyrebird_beacon_base
+status: experimental
+description: Base event selection for beacon correlation — request events.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+detection:
+  selection:
+    event_type: 'request'
+  condition: selection
+level: informational
+---
+title: High-Frequency Beaconing From Single Source (Possible C2)
+id: 4e5f6071-8293-4a41-cd5e-6f7081920314
+status: experimental
+description: >
+  A source generating many requests to the emulator within a short window is
+  consistent with automated C2 beaconing. For jitter/channel-rotation specifics,
+  run `python -m lyrebird.beacons` on the session.
+author: Lyrebird
+date: 2026/06/29
+correlation:
+  type: event_count
+  rules:
+    - lyrebird_beacon_base
+  group-by:
+    - src_ip
+  timespan: 10m
+  condition:
+    gte: 20
+level: medium

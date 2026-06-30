@@ -1,0 +1,26 @@
+title: HTTP Request With Missing User-Agent To Lab Emulator (Possible Beacon)
+id: 9a2b3c4d-5e6f-4071-8a9b-1c2d3e4f5061
+status: experimental
+description: >
+  Many malware HTTP beacons omit a User-Agent header or send a hard-coded one.
+  This rule flags requests captured by the Lyrebird HTTP emulator that carried no
+  User-Agent. Combine with frequency analysis on src_ip for cadence. Pair:
+  services/http.py tags these 'missing-user-agent'.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: http
+detection:
+  selection:
+    service: 'http'
+    tags|contains: 'missing-user-agent'
+  condition: selection
+fields:
+  - src_ip
+  - request.method
+  - request.path
+  - request.host
+falsepositives:
+  - Simple connectivity checkers and some legitimate clients
+level: low
