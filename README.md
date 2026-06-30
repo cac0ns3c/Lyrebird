@@ -67,17 +67,16 @@ Events land in `labdata/events/<session>.jsonl`; captured payloads in
 | Service | Transport | Status | Notes |
 |---|---|---|---|
 | HTTP / HTTPS | TCP | ✅ implemented | catch-all any method/path; auto-TLS; body capture |
-| DNS | UDP | ✅ implemented | sinkhole responder; logs every lookup |
+| DNS | UDP | ✅ implemented | sinkhole responder; logs every lookup; optional realistic NXDOMAIN mode (off by default) |
 | SMTP | TCP | ✅ implemented | accepts + captures mail; logs envelope |
 | POP3 | TCP | ✅ implemented | fake mailbox; logs credentials/commands |
-| FTP | TCP | ✅ implemented | passive-mode; captures STOR uploads |
+| FTP | TCP | ✅ implemented | passive + active (PORT) mode; captures STOR uploads |
 | TFTP | UDP | ✅ implemented | captures WRQ uploads; per-transfer TID |
 | IRC | TCP | ✅ implemented | observes bot C2 — nick, channels, PRIVMSG tasking |
 | NTP | UDP | ✅ implemented | answers time; configurable faketime delta |
 | TCP sink | TCP | ✅ implemented | logs all data to extra ports (INetSim "Dummy") |
 | IMAP | TCP | ✅ implemented | fake mailbox; logs LOGIN credentials |
 | DNS over TCP | TCP | ✅ implemented | sinkhole over TCP transport |
-| FTP active mode | TCP | ✅ implemented | PORT-based data channel |
 | TLS (fingerprint + serve) | TCP | ✅ implemented | JA3/JA4 + SNI, terminates & serves, same-connection SNI-vs-Host (off by default) |
 | TLS fingerprint tap | TCP | ✅ implemented | JA3/JA4 + SNI capture then close (off by default) |
 
@@ -211,7 +210,7 @@ tests/
 
 ## Status
 
-All twelve services and all three detection-analytics phases are implemented,
+All thirteen services and all three detection-analytics phases are implemented,
 tested, and runnable; the suite boots end to end and every service emits
 telemetry. The plugin contract is stable, so the remaining items (IMAP IDLE,
 active-mode edge cases, packet-layer JA3 enrichment) are additive. See `SCOPE.md`

@@ -6,7 +6,9 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10"
 classifiers = [
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+    "Intended Audience :: Information Technology",
 ]
 dependencies = [
     "fastapi>=0.110",
@@ -16,6 +18,7 @@ dependencies = [
     "dnslib>=0.9.24",
     "pyyaml>=6.0",
     "cryptography>=42.0",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
