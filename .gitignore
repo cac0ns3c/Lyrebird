@@ -3,6 +3,8 @@ __pycache__/
 *.pyo
 labdata/
 *.egg-info/
+build/
+dist/
 .venv/
 venv/
 .pytest_cache/
