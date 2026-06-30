@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from ..base import BaseService
@@ -45,15 +46,49 @@ class ImapService(BaseService):
                     writer.write(b"* 0 EXISTS\r\n")
                     writer.write(f"{tag} OK [READ-WRITE] SELECT completed\r\n".encode())
                 elif cmd == "IDLE":
+                    # A parked IDLE is the mailbox-as-C2 long-poll pattern. Push an
+                    # unsolicited EXISTS to simulate the server delivering tasking,
+                    # then record how the wait ended.
                     writer.write(b"+ idling\r\n")
                     await writer.drain()
-                    # wait for DONE (clients hold IDLE open for push); log the wait
+                    idle_start = time.monotonic()
+                    push_delay = float(self.cfg.get("idle_push_delay", 2.0))
+                    idle_max = float(self.cfg.get("idle_max", 60))
+                    state = {"pushed": False}
+
+                    async def _push() -> None:
+                        try:
+                            await asyncio.sleep(push_delay)
+                            writer.write(b"* 1 EXISTS\r\n")
+                            await writer.drain()
+                            state["pushed"] = True
+                        except Exception:
+                            pass  # connection may have closed mid-push
+
+                    push_task = asyncio.create_task(_push())
+                    ended = "timeout"
                     try:
-                        done = await asyncio.wait_for(reader.readline(), timeout=60)
-                        if done.strip().upper() == b"DONE":
+                        done = await asyncio.wait_for(reader.readline(), timeout=idle_max)
+                        if not done:
+                            ended = "closed"
+                        elif done.strip().upper() == b"DONE":
                             writer.write(f"{tag} OK IDLE terminated\r\n".encode())
+                            ended = "done"
                     except asyncio.TimeoutError:
                         writer.write(f"{tag} OK IDLE timeout\r\n".encode())
+                    finally:
+                        push_task.cancel()
+                        try:
+                            await push_task
+                        except BaseException:
+                            pass
+                    idle_seconds = round(time.monotonic() - idle_start, 2)
+                    self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                              dst_port=port, event_type="request",
+                              summary=f"imap IDLE {ended} after {idle_seconds}s pushed={state['pushed']}",
+                              request={"idle_seconds": idle_seconds,
+                                       "pushed": state["pushed"], "ended": ended},
+                              tags=["imap-idle"])
                 elif cmd == "LOGOUT":
                     writer.write(b"* BYE\r\n")
                     writer.write(f"{tag} OK LOGOUT completed\r\n".encode())

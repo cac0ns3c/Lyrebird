@@ -31,7 +31,7 @@ DEFAULTS: dict[str, Any] = {
         "dns_tcp":  {"enabled": True,  "port": 53,   "default_a": "10.13.37.1"},
         "smtp":     {"enabled": True,  "port": 25},
         "pop3":     {"enabled": True,  "port": 110},
-        "imap":     {"enabled": True,  "port": 143},
+        "imap":     {"enabled": True,  "port": 143, "idle_push_delay": 2.0, "idle_max": 60},
         "ftp":      {"enabled": True,  "port": 21},
         "tftp":     {"enabled": True,  "port": 69},
         "irc":      {"enabled": True,  "port": 6667},
