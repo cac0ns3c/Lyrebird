@@ -12,6 +12,7 @@ venv/
 .mypy_cache/
 *.log
 .DS_Store
+.superpowers/
 
 # Personal Claude Code settings (shared config lives in .claude/settings.json)
 .claude/settings.local.json
