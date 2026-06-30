@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: HTTP Request Carrying Outbound Body To Lab Emulator (Possible Exfil / Check-In)
+id: 7c033210-fde8-4fa3-a11f-190a46f3d89d
+status: experimental
+description: >
+  In a containment lab the only client is the sample, so any HTTP request that
+  carries an outbound body — a POST/PUT with content — is a candidate
+  exfiltration or beacon check-in (uploading collected data or returning task
+  results). services/http.py tags these 'data-out' and captures the body as a
+  hashed artifact. This is a broad triage signal; raise confidence by combining
+  it with the mimicry analytic's 'encrypted-body' (near-maximal entropy) or with
+  a missing/automation User-Agent.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: http
+detection:
+  selection:
+    service: 'http'
+    tags|contains: 'data-out'
+  condition: selection
+fields:
+  - src_ip
+  - request.host
+  - request.path
+  - request.method
+  - request.body_len
+falsepositives:
+  - Benign software check-ins, if any non-sample client shares the lab network
+level: low

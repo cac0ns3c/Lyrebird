@@ -386,6 +386,7 @@
             <tr><td>DNS sandbox probe</td><td><span class="mono">dns · sandbox-probe</span></td><td>Resolution of a non-existent domain (realistic mode)</td><td><span class="lvl medium">medium</span></td></tr>
             <tr><td>HTTP no User-Agent</td><td><span class="mono">http · missing-user-agent</span></td><td>Beacons that omit or hard-code a UA</td><td><span class="lvl low">low</span></td></tr>
             <tr><td>HTTP automation UA</td><td><span class="mono">http · suspicious-user-agent</span></td><td>Beacon with a library/hardcoded User-Agent</td><td><span class="lvl medium">medium</span></td></tr>
+            <tr><td>HTTP outbound body</td><td><span class="mono">http · data-out</span></td><td>POST/PUT body — possible exfil or beacon check-in</td><td><span class="lvl low">low</span></td></tr>
             <tr><td>Frontable-host beacon</td><td><span class="mono">host∈CDN + missing-ua</span></td><td>Domain fronting (app-layer tell)</td><td><span class="lvl medium">medium</span></td></tr>
             <tr><td>SMTP bulk recipients</td><td><span class="mono">smtp · bulk-recipients</span></td><td>Mass-mailer / spam-bot behaviour</td><td><span class="lvl medium">medium</span></td></tr>
             <tr><td>IRC channel join</td><td><span class="mono">irc · channel-join</span></td><td>Classic botnet command channel</td><td><span class="lvl high">high</span></td></tr>

@@ -34,7 +34,7 @@ CONTEXT_OR_ANALYTIC_TAGS = {
     "irc", "privmsg",              # session context; channel-join is the signal
     "credentials",                 # captured evidence (pop3/imap/ftp/smtp auth)
     "txt-query",                   # dns context; long-label is the signal
-    "data-out", "model-response",  # http response provenance
+    "model-response",              # http response provenance (data-out is paired)
     "faketime",                    # benign lab-clock shift, not malicious
     "sink", "tftp", "dns-tcp",     # service-name context tags
     "upstream-resolved",           # egress-occurred marker (realistic DNS mode)
