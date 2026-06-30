@@ -103,7 +103,7 @@ so it never drifts. Regenerate with `python scripts/gen_reference.py`.
 | IRC | TCP | ✅ implemented | observes bot C2 — nick, channels, PRIVMSG tasking |
 | NTP | UDP | ✅ implemented | answers time; configurable faketime delta |
 | TCP sink | TCP | ✅ implemented | logs all data to extra ports (INetSim "Dummy") |
-| IMAP | TCP | ✅ implemented | fake mailbox; logs LOGIN credentials |
+| IMAP | TCP | ✅ implemented | fake mailbox; logs LOGIN credentials; IDLE push (mailbox-C2 long-poll) → imap-idle |
 | DNS over TCP | TCP | ✅ implemented | sinkhole over TCP transport |
 | TLS (fingerprint + serve) | TCP | ✅ implemented | JA3/JA4 + SNI, terminates & serves, same-connection SNI-vs-Host (off by default) |
 | TLS fingerprint tap | TCP | ✅ implemented | JA3/JA4 + SNI capture then close (off by default) |
