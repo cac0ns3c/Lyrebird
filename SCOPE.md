@@ -36,5 +36,22 @@ safe to distribute openly under GPL-3.0-or-later and safe to run beside live
 samples. Detection content is a first-class output, not an afterthought: every
 emulated technique ships with the detection that catches it, in the same change.
 
+## Isolation, and the one mode that relaxes it
+
+Lyrebird is built to run on a segmented, non-routable lab with no egress, and
+every default keeps it there. One opt-in feature deliberately reaches the real
+internet: the DNS service's realistic mode (`dns.upstream.enabled`, OFF by
+default) consults a real resolver to decide whether a domain exists, so it can
+return NXDOMAIN for the non-existent domains sandbox-aware malware probes for.
+
+Enabling it **breaks isolation**: the queried name is sent to the upstream
+resolver, which can reveal to adversary infrastructure that a sample is under
+analysis. It exists because some labs knowingly accept that trade for higher
+fidelity. It is not a license to add general egress or outbound connections from
+emulated services — it remains decide-then-sink (the sample is never forwarded
+to the real host), DGA/tunneling probes are never sent upstream, and every
+upstream lookup is recorded as telemetry. Any further network-reaching behaviour
+must clear the same bar and be argued explicitly.
+
 See `CONTRIBUTING.md` for how this scope shapes the bar for a change, and
 `CLAUDE.md` for the working context Claude Code sessions load first.

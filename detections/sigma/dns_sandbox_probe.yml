@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: DNS Resolution For Non-Existent Domain (Possible Sandbox-Detection Probe)
+id: 1b9d3c47-2e85-4a16-8f0c-7d4e2a9b6c51
+status: experimental
+description: >
+  In realistic mode the Lyrebird DNS service consults an upstream resolver to
+  decide whether a queried domain actually exists, returning NXDOMAIN for names
+  that do not. Malware commonly probes a deliberately non-existent / random
+  domain and treats a successful resolution as proof it is inside a fake-internet
+  sandbox. A query that resolves to NXDOMAIN here is tagged 'sandbox-probe' —
+  repeated such probes from one source are a strong anti-analysis signal. Pair:
+  services/dns.py emits the tag when upstream resolution returns NXDOMAIN.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: dns
+detection:
+  selection:
+    service:
+      - 'dns'
+      - 'dns_tcp'
+    tags|contains: 'sandbox-probe'
+  condition: selection
+fields:
+  - src_ip
+  - request.qname
+  - request.qtype
+falsepositives:
+  - Stale or mistyped domains queried by benign software (uncommon in a malware lab)
+level: medium

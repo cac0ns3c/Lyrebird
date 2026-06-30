@@ -37,6 +37,7 @@ CONTEXT_OR_ANALYTIC_TAGS = {
     "data-out", "model-response",  # http response provenance
     "faketime",                    # benign lab-clock shift, not malicious
     "sink", "tftp", "dns-tcp",     # service-name context tags
+    "upstream-resolved",           # egress-occurred marker (realistic DNS mode)
 }
 
 # `tags=[...]`, `tags = [...]`, or `tags.append(...)` — capture the argument text.

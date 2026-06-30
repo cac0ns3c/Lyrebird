@@ -35,6 +35,18 @@ services:
     port: 53
     default_a: "10.13.37.1"          # sinkhole address for every unmatched A query
     default_aaaa: "::1"
+    # Realistic resolution (OFF by default). When enabled, an unmatched query is
+    # checked against a real upstream resolver: existing domains still resolve to
+    # the sink above, non-existent ones return NXDOMAIN — defeating the sandbox
+    # "answer-everything" tell. WARNING: this requires network egress and BREAKS
+    # lab isolation (the queried name is sent upstream, which can reveal the
+    # analysis). DGA/long-label probes are never forwarded upstream. Operator
+    # rules below always win. Leave disabled for an air-gapped lab.
+    upstream:
+      enabled: false
+      resolver: "1.1.1.1"            # egress path you explicitly choose
+      timeout: 2.0
+      cache_ttl: 300
     responses:
       dns:
         - qname: "*.evil-c2.com"     # glob over the queried name
