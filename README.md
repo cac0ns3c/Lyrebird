@@ -26,6 +26,19 @@ interaction lands as structured JSONL with detections firing as tags:
 > is generated from [`demo/lyrebird.tape`](demo/lyrebird.tape) with
 > [VHS](https://github.com/charmbracelet/vhs); see [`demo/`](demo/) to reproduce it.
 
+### With the AI model layer
+
+Optionally, Lyrebird can call a model to (1) improvise a believable, **inert**
+reply for an endpoint no static rule anticipated — so an unfamiliar sample keeps
+talking — and (2) triage the captured session into a verdict and candidate Sigma
+detections:
+
+![Lyrebird AI demo: the model improvises a benign response for an un-ruled endpoint, then triages the captured session into a verdict and suggested detections](docs/assets/demo-ai.gif)
+
+> Off by default. The responder is constrained to generic placeholder content —
+> never payloads, scripts, or tasking (see [`SCOPE.md`](SCOPE.md) and
+> [`src/lyrebird/models/responder.py`](src/lyrebird/models/responder.py)).
+
 ## Why
 
 INetSim is still the reference tool, but it's Perl-based, synchronous, config is a

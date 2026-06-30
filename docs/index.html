@@ -316,6 +316,10 @@
         <img src="assets/demo.gif" alt="Lyrebird demo: a stand-in sample checks in over HTTP and DNS while Lyrebird captures each interaction as structured JSONL with detection tags firing" loading="lazy" style="width:100%;border:1px solid var(--line,#2a2f3a);border-radius:10px;display:block">
         <figcaption style="margin-top:.7rem;font-size:.9rem;opacity:.72">A lab boots, a stand-in <code class="inline">curl</code>/<code class="inline">dig</code> sample talks to the services, and every interaction lands as structured JSONL with detections firing as tags. Reproducible from <code class="inline">demo/lyrebird.tape</code>.</figcaption>
       </figure>
+      <figure style="margin:2.4rem 0 0">
+        <img src="assets/demo-ai.gif" alt="Lyrebird AI demo: the optional model layer improvises a benign, inert reply for an endpoint no static rule anticipated, then triages the captured session into a verdict and suggested Sigma detections" loading="lazy" style="width:100%;border:1px solid var(--line,#2a2f3a);border-radius:10px;display:block">
+        <figcaption style="margin-top:.7rem;font-size:.9rem;opacity:.72"><strong>Optional AI model layer.</strong> The model improvises a believable, <em>inert</em> response for an un-ruled endpoint so an unfamiliar sample keeps talking, then <code class="inline">lyrebird.analyze</code> triages the whole session into a verdict and candidate detections. Off by default; constrained to placeholder content only.</figcaption>
+      </figure>
     </section>
 
     <section id="pairing">

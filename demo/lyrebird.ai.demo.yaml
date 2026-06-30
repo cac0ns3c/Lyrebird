@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# AI-assisted demo config for demo/lyrebird.ai.tape.
+# Same no-root lab as lyrebird.demo.yaml, but with the model layer ON so the
+# recording can show (a) the responder improvising a believable, inert reply for
+# an endpoint no static rule anticipated, and (b) lyrebird.analyze triaging the
+# captured session. Requires ANTHROPIC_API_KEY in the environment at render time.
+bind_address: "127.0.0.1"
+data_dir: "./demo/.labdata"
+session: "demo-ai"
+echo: false
+
+tls:
+  enabled: false
+
+models:
+  provider: anthropic
+  model: claude-sonnet-4-6
+  respond:
+    enabled: true            # let the model author benign placeholder bodies for un-ruled requests
+
+services:
+  http:
+    enabled: true
+    port: 8080
+    responses:
+      http:
+        # A static rule still wins when it matches — the AI only fills the gaps.
+        - path: "/gate.php"
+          method: "POST"
+          status: 200
+          content_type: "application/json"
+          body: '{"status":"ok","task":"none"}'
+  dns:
+    enabled: true
+    port: 8053
+    default_a: "10.13.37.1"
+  smtp: {enabled: false}
+  pop3: {enabled: false}
+  imap: {enabled: false}
+  ftp:  {enabled: false}
+  tftp: {enabled: false}
+  irc:  {enabled: false}
+  ntp:  {enabled: false}
+  dns_tcp: {enabled: false}
+  tcp_sink:
+    enabled: true
+    ports: [8888]
