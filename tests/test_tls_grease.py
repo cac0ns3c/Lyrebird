@@ -9,23 +9,23 @@ from lyrebird.tls import ClientHello, grease_present, offers_tls13  # noqa: E402
 
 
 def build_client_hello(ciphers: list[int], extensions: list[tuple[int, bytes]]) -> bytes:
-	"""Minimal raw ClientHello handshake message (starts with 0x01)."""
-	body = b"\x03\x03"                                   # legacy_version TLS1.2
-	body += b"\x00" * 32                                 # random
-	body += b"\x00"                                      # session_id length 0
-	cs = b"".join(c.to_bytes(2, "big") for c in ciphers)
-	body += len(cs).to_bytes(2, "big") + cs             # cipher_suites
-	body += b"\x01\x00"                                  # compression: len 1, null
-	ext = b"".join(et.to_bytes(2, "big") + len(ed).to_bytes(2, "big") + ed
-	               for et, ed in extensions)
-	body += len(ext).to_bytes(2, "big") + ext           # extensions block
-	return b"\x01" + len(body).to_bytes(3, "big") + body
+    """Minimal raw ClientHello handshake message (starts with 0x01)."""
+    body = b"\x03\x03"                                   # legacy_version TLS1.2
+    body += b"\x00" * 32                                 # random
+    body += b"\x00"                                      # session_id length 0
+    cs = b"".join(c.to_bytes(2, "big") for c in ciphers)
+    body += len(cs).to_bytes(2, "big") + cs             # cipher_suites
+    body += b"\x01\x00"                                  # compression: len 1, null
+    ext = b"".join(et.to_bytes(2, "big") + len(ed).to_bytes(2, "big") + ed
+                   for et, ed in extensions)
+    body += len(ext).to_bytes(2, "big") + ext           # extensions block
+    return b"\x01" + len(body).to_bytes(3, "big") + body
 
 
 def supported_versions_ext(versions: list[int]) -> tuple[int, bytes]:
-	"""Build a supported_versions extension (0x002b)."""
-	payload = b"".join(v.to_bytes(2, "big") for v in versions)
-	return (0x002b, bytes([len(payload)]) + payload)
+    """Build a supported_versions extension (0x002b)."""
+    payload = b"".join(v.to_bytes(2, "big") for v in versions)
+    return (0x002b, bytes([len(payload)]) + payload)
 
 
 def test_grease_present_true_when_grease_in_ciphers():
@@ -140,6 +140,10 @@ def test_tls_capture_emits_no_grease_tag(tmp_path):
         await writer.drain()
         await reader.read(64)   # service sends a TLS alert, then closes
         writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
         await svc.stop()
 
     asyncio.run(scenario())
