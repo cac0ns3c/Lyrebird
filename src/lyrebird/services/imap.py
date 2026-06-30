@@ -94,6 +94,18 @@ class ImapService(BaseService):
                     writer.write(f"{tag} OK LOGOUT completed\r\n".encode())
                     await writer.drain()
                     break
+                elif cmd == "FETCH":
+                    # Static benign stub so a sample that DONEs-then-FETCHes after
+                    # the IDLE push completes the retrieval loop.
+                    msg = (b"From: postmaster@lab.local\r\n"
+                           b"To: user@lab.local\r\n"
+                           b"Subject: (no subject)\r\n"
+                           b"\r\n"
+                           b"This mailbox has no new messages.\r\n")
+                    writer.write(f"* 1 FETCH (RFC822 {{{len(msg)}}}\r\n".encode())
+                    writer.write(msg)
+                    writer.write(b")\r\n")
+                    writer.write(f"{tag} OK FETCH completed\r\n".encode())
                 else:
                     writer.write(f"{tag} OK\r\n".encode())
                 await writer.drain()

@@ -90,3 +90,36 @@ def test_imap_idle_timeout(tmp_path):
     assert idle, "no imap-idle event emitted"
     assert idle[0]["request"]["ended"] == "timeout"
     assert idle[0]["request"]["pushed"] is False
+
+
+def test_imap_fetch_returns_stub(tmp_path):
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = ImapService(cfg={"port": 0}, sink=sink, bind_address="127.0.0.1",
+                      data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        await reader.readline()                       # greeting
+        writer.write(b"a1 FETCH 1 RFC822\r\n"); await writer.drain()
+        data = b""
+        for _ in range(12):
+            line = await asyncio.wait_for(reader.readline(), timeout=3)
+            data += line
+            if line.startswith(b"a1 OK"):
+                break
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        await svc.stop()
+        return data
+
+    data = asyncio.run(scenario())
+    sink.close()
+    assert b"* 1 FETCH (RFC822" in data
+    assert b"postmaster@lab.local" in data
+    assert b"a1 OK FETCH completed" in data
