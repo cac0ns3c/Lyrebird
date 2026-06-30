@@ -15,7 +15,6 @@ author: Lyrebird
 date: 2026/06/30
 logsource:
   product: lyrebird
-  service: tls_capture
 detection:
   selection:
     tags|contains: 'no-grease'

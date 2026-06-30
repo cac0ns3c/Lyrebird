@@ -61,5 +61,5 @@ Levels are shipped defaults — tune to your environment.
 | IRC Channel Join Observed By Lab Emulator (Possible Botnet C2) | `irc` | `tags=channel-join` | high |
 | Bulk-Recipient Mail Captured By Lab Emulator (Possible Mass Mailer) | `smtp` | `tags=bulk-recipients` | medium |
 | Known-Bad TLS Client Fingerprint (JA3/JA4) Seen By Emulator | `tls_capture` | `request.ja3=REPLACE_WITH_KNOWN_BAD_JA3; request.ja4=REPLACE_WITH_KNOWN_BAD_JA4` | high |
-| TLS 1.3 ClientHello Without GREASE (Possible Automation or Malware) | `tls_capture` | `tags=no-grease` | medium |
+| TLS 1.3 ClientHello Without GREASE (Possible Automation or Malware) | `—` | `tags=no-grease` | medium |
 | TLS SNI/Host Mismatch Observed By Emulator (Possible Domain Fronting) | `tls` | `tags=sni-host-mismatch` | high |
