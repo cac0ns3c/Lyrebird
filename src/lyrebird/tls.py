@@ -196,14 +196,31 @@ def ja4_raw(ch: ClientHello, protocol: str = "t") -> str:
 
 
 def fingerprint(data: bytes) -> Optional[dict]:
-    """Convenience: parse + both fingerprints + key fields, or None."""
+    """Convenience: parse + both fingerprints + enriched fields, or None."""
     ch = parse_client_hello(data)
     if ch is None:
         return None
     j3_str, j3 = ja3(ch)
+    gp = grease_present(ch)
     return {
-        "ja3": j3, "ja3_string": j3_str, "ja4": ja4(ch),
+        "ja3": j3, "ja3_string": j3_str, "ja4": ja4(ch), "ja4_r": ja4_raw(ch),
         "sni": ch.sni, "alpn": ch.alpn,
         "cipher_count": len(_no_grease(ch.ciphers)),
         "ext_count": len(_no_grease(ch.extensions)),
+        "groups": _no_grease(ch.groups),
+        "sig_algs": _no_grease(ch.sig_algs),
+        "supported_versions": _no_grease(ch.supported_versions),
+        "grease_present": gp,
+        "no_grease_signal": (not gp) and offers_tls13(ch),
+    }
+
+
+def fp_event_fields(fp: dict) -> dict:
+    """Enrichment fields both TLS services attach to their event request dict."""
+    return {
+        "ja4_r": fp.get("ja4_r"),
+        "groups": fp.get("groups"),
+        "sig_algs": fp.get("sig_algs"),
+        "supported_versions": fp.get("supported_versions"),
+        "grease_present": fp.get("grease_present"),
     }
