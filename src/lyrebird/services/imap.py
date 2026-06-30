@@ -74,6 +74,8 @@ class ImapService(BaseService):
                         elif done.strip().upper() == b"DONE":
                             writer.write(f"{tag} OK IDLE terminated\r\n".encode())
                             ended = "done"
+                        else:
+                            ended = "other"
                     except asyncio.TimeoutError:
                         writer.write(f"{tag} OK IDLE timeout\r\n".encode())
                     finally:

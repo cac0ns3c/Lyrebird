@@ -55,6 +55,9 @@ Chosen mechanism: a fire-and-forget push task while the main path awaits `DONE`.
 3. `await asyncio.wait_for(reader.readline(), timeout=idle_max)`:
    - line is `DONE` → write `<tag> OK IDLE terminated`, `ended="done"`.
    - empty line (client closed) → `ended="closed"`.
+   - non-empty line that is not `DONE` → `ended="other"` (no extra protocol
+     response; "other" = a non-empty non-DONE line received during IDLE; added
+     in review to fix a telemetry mislabel).
    - `asyncio.TimeoutError` → write `<tag> OK IDLE timeout`, `ended="timeout"`.
 4. `finally`: cancel the push task and await its cancellation.
 5. Emit one event (below). The enclosing `while` loop continues, so a client may
@@ -79,7 +82,9 @@ One event per IDLE entry:
 
 - `event_type="request"`, `transport="tcp"`, src/dst as elsewhere in the handler.
 - `tags=["imap-idle"]`
-- `request={"idle_seconds": <float, 2 dp>, "pushed": <bool>, "ended": "done"|"timeout"|"closed"}`
+- `request={"idle_seconds": <float, 2 dp>, "pushed": <bool>, "ended": "done"|"timeout"|"closed"|"other"}`
+  (`"other"` = a non-empty non-DONE line received during IDLE; added in review
+  to fix a telemetry mislabel)
 - `summary` e.g. `imap IDLE done after 2.10s pushed=true`
 
 ### Detection (paired)

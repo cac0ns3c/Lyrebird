@@ -57,6 +57,7 @@ def test_imap_idle_push_done_emits_signal(tmp_path):
     events = _wait_for_events(log)
     idle = [e for e in events if "imap-idle" in e.get("tags", [])]
     assert idle, "no imap-idle event emitted"
+    assert idle[0]["service"] == "imap"
     assert idle[0]["request"]["pushed"] is True
     assert idle[0]["request"]["ended"] == "done"
     assert idle[0]["request"]["idle_seconds"] >= 0
@@ -88,8 +89,40 @@ def test_imap_idle_timeout(tmp_path):
     events = _wait_for_events(log)
     idle = [e for e in events if "imap-idle" in e.get("tags", [])]
     assert idle, "no imap-idle event emitted"
+    assert idle[0]["service"] == "imap"
     assert idle[0]["request"]["ended"] == "timeout"
     assert idle[0]["request"]["pushed"] is False
+
+
+def test_imap_idle_non_done_line_marks_other(tmp_path):
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = ImapService(cfg={"port": 0, "idle_push_delay": 5, "idle_max": 5},
+                      sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        await reader.readline()                       # greeting
+        writer.write(b"a1 IDLE\r\n"); await writer.drain()
+        await reader.readline()                       # + idling
+        writer.write(b"NOOP\r\n"); await writer.drain()
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    idle = [e for e in events if "imap-idle" in e.get("tags", [])]
+    assert idle, "no imap-idle event emitted"
+    assert idle[0]["request"]["ended"] == "other"
+    assert idle[0]["request"]["pushed"] is False
+    assert idle[0]["service"] == "imap"
 
 
 def test_imap_fetch_returns_stub(tmp_path):
