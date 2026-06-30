@@ -4,8 +4,9 @@ status: experimental
 description: >
   Flags DNS queries with an unusually long leftmost label observed against the
   Lyrebird DNS emulator. Long, high-entropy labels are characteristic of domain
-  generation algorithms and DNS tunneling. Pair: emitted by services/dns.py,
-  which tags such queries 'long-label'.
+  generation algorithms and DNS tunneling. Pair: emitted by services/dns.py and
+  services/dns_tcp.py, which tag such queries 'long-label' — tunneling commonly
+  falls back to TCP for larger payloads, so both transports are in scope.
 references:
   - https://www.inetsim.org/
 author: Lyrebird
@@ -15,7 +16,9 @@ logsource:
   service: dns
 detection:
   selection:
-    service: 'dns'
+    service:
+      - 'dns'
+      - 'dns_tcp'
     tags|contains: 'long-label'
   condition: selection
 fields:

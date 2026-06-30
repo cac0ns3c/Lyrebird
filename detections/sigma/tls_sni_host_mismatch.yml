@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: TLS SNI/Host Mismatch Observed By Emulator (Possible Domain Fronting)
+id: e0698a22-a924-4765-a956-6d076a968486
+status: experimental
+description: >
+  The Lyrebird TLS serve service terminates the handshake with the lab CA and, on
+  a single connection, compares the TLS SNI against the HTTP Host header sent
+  inside the encrypted channel. A mismatch is a high-fidelity domain-fronting
+  tell: the sample presents one name in the ClientHello (often a frontable CDN)
+  but requests another once the channel is up. Pair: services/tls.py tags such
+  connections 'sni-host-mismatch' and records both names plus the JA3/JA4.
+author: Lyrebird
+date: 2026/06/29
+logsource:
+  product: lyrebird
+  service: tls
+detection:
+  selection:
+    service: 'tls'
+    tags|contains: 'sni-host-mismatch'
+  condition: selection
+fields:
+  - src_ip
+  - request.sni
+  - request.host
+  - request.http
+  - request.ja4
+falsepositives:
+  - Legitimate multi-tenant/CDN TLS where SNI and Host differ by design
+  - Misconfigured clients reusing a connection across virtual hosts
+level: high
