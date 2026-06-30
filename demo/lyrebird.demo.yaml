@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Demo lab config for the README/docs walkthrough (demo/lyrebird.tape).
+# Unprivileged high ports so the recording renders without root, a focused
+# subset of services, and a fixed data dir so the tape can tail the JSONL.
+bind_address: "127.0.0.1"
+data_dir: "./demo/.labdata"
+session: "demo"
+echo: false                 # keep the backgrounded server quiet; the tape tails the JSONL
+
+tls:
+  enabled: false
+
+services:
+  http:
+    enabled: true
+    port: 8080
+    responses:
+      http:
+        - path: "/gate.php"
+          method: "POST"
+          status: 200
+          content_type: "application/json"
+          body: '{"status":"ok","task":"none"}'
+  dns:
+    enabled: true
+    port: 8053
+    default_a: "10.13.37.1"
+  smtp:
+    enabled: false
+  pop3: {enabled: false}
+  imap: {enabled: false}
+  ftp:  {enabled: false}
+  tftp: {enabled: false}
+  irc:  {enabled: false}
+  ntp:  {enabled: false}
+  dns_tcp: {enabled: false}
+  tcp_sink:
+    enabled: true
+    ports: [8888]

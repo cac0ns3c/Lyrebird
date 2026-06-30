@@ -15,6 +15,17 @@ first-class output.
 > implant, no command-and-control capability, and no evasion tooling. Run it on a
 > segmented, non-routable network. Do not expose it to the internet.
 
+## Demo
+
+A lab boots, a stand-in sample talks to the emulated services, and every
+interaction lands as structured JSONL with detections firing as tags:
+
+![Lyrebird demo: a sample checks in over HTTP and DNS while Lyrebird captures each interaction as structured JSONL with detection tags](docs/assets/demo.gif)
+
+> The "sample" is a benign `curl`/`dig` — Lyrebird only observes. The recording
+> is generated from [`demo/lyrebird.tape`](demo/lyrebird.tape) with
+> [VHS](https://github.com/charmbracelet/vhs); see [`demo/`](demo/) to reproduce it.
+
 ## Why
 
 INetSim is still the reference tool, but it's Perl-based, synchronous, config is a
