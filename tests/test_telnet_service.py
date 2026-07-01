@@ -162,3 +162,31 @@ def test_telnet_shell_captures_commands_and_payload_pull(tmp_path):
     assert pull[0]["request"]["tool"] == "wget"
     assert pull[0]["request"]["url"] == "http://10.0.0.9/m"
     assert pull[0]["service"] == "telnet"
+
+
+def test_telnet_bruteforce_fires_on_failed_disconnect(tmp_path):
+    # A brute-force that never guesses right and hangs up must STILL fire
+    # telnet-bruteforce (accepted False) — the failed cred-list run is the tell.
+    svc, sink, log = _mksvc(tmp_path, accept_after=99, bruteforce_threshold=3)
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        for u, p in [(b"root", b"1"), (b"admin", b"2"), (b"root", b"3")]:
+            await _login(reader, writer, u, p)
+        writer.close()                      # hang up without ever succeeding
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    bf = [e for e in events if "telnet-bruteforce" in e.get("tags", [])]
+    assert bf, "telnet-bruteforce not fired on a failed brute-force"
+    assert bf[0]["request"]["attempts"] == 3
+    assert bf[0]["request"]["accepted"] is False
+    assert not [e for e in events if e.get("request", {}).get("command")]  # no shell

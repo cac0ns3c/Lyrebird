@@ -87,7 +87,7 @@ class TelnetService(BaseService):
                 await writer.drain()
                 user = await self._readline(reader)
                 if not user and reader.at_eof():
-                    return
+                    break
                 writer.write(b"Password: ")
                 await writer.drain()
                 password = await self._readline(reader)
@@ -107,16 +107,21 @@ class TelnetService(BaseService):
                     writer.write(b"\r\nLogin incorrect\r\n")
                     await writer.drain()
                     if reader.at_eof():
-                        return
+                        break
+            # Fire the brute-force signal for ANY connection that crossed the
+            # threshold — successful or not (a failed credential-list run that
+            # hangs up is still the tell), matching the SSH honeypot's
+            # per-connection model.
             if attempts >= self.bruteforce_threshold:
                 self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
                           dst_port=self.port, event_type="request",
                           summary=(f"telnet brute-force {attempts} attempts "
-                                   f"client={client} accepted=True"),
+                                   f"client={client} accepted={accepted}"),
                           request={"attempts": attempts, "client": client,
-                                   "accepted": True},
+                                   "accepted": accepted},
                           tags=["telnet-bruteforce"])
-            await self._shell(reader, writer, peer)
+            if accepted:
+                await self._shell(reader, writer, peer)
         except (asyncio.TimeoutError, ConnectionError):
             pass
         except Exception:
