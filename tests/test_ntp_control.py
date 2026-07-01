@@ -34,7 +34,7 @@ def test_parse_mode_unit():
 class _Client(asyncio.DatagramProtocol):
     def __init__(self):
         self.replies = []
-        self.done = asyncio.get_event_loop().create_future()
+        self.done = asyncio.get_running_loop().create_future()
 
     def datagram_received(self, data, addr):
         self.replies.append(data)
@@ -84,13 +84,16 @@ def test_ntp_mode3_time_query_no_signal(tmp_path):
 
 def test_ntp_mode6_control_flagged(tmp_path):
     svc, sink, log = _mksvc(tmp_path)
-    _run(svc, bytes([0x16, 0x02]) + b"\x00" * 10)
+    request = bytes([0x16, 0x02]) + b"\x00" * 10
+    replies = _run(svc, request)
     sink.close()
     events = _wait_for_events(log)
     cq = [e for e in events if "ntp-control-query" in e.get("tags", [])]
     assert cq, "no ntp-control-query for mode 6"
     assert cq[0]["request"]["mode"] == 6
     assert cq[0]["service"] == "ntp"
+    for r in replies:                       # mode 6 must also never amplify
+        assert len(r) <= len(request), f"amplified: {len(r)} > {len(request)}"
 
 
 def test_ntp_mode7_monlist_flagged_and_not_amplified(tmp_path):
