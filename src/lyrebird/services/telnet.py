@@ -116,7 +116,7 @@ class TelnetService(BaseService):
                           request={"attempts": attempts, "client": client,
                                    "accepted": True},
                           tags=["telnet-bruteforce"])
-            # Fake shell is added in Task 2.
+            await self._shell(reader, writer, peer)
         except (asyncio.TimeoutError, ConnectionError):
             pass
         except Exception:
@@ -127,6 +127,37 @@ class TelnetService(BaseService):
                 await writer.wait_closed()
             except Exception:
                 pass
+
+    async def _shell(self, reader: asyncio.StreamReader,
+                     writer: asyncio.StreamWriter, peer) -> None:
+        writer.write(b"\r\n# ")
+        await writer.drain()
+        while True:
+            cmd = await self._readline(reader)
+            if not cmd:
+                if reader.at_eof():
+                    break
+                writer.write(b"# ")
+                await writer.drain()
+                continue
+            if cmd in ("exit", "logout", "quit"):
+                break
+            output, pull = respond(cmd)
+            writer.write((output + ("\r\n" if not output.endswith("\n") else "")).encode())
+            if pull is not None:
+                self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                          dst_port=self.port, event_type="request",
+                          summary=f"telnet payload-pull {pull['tool']} {pull['url']}",
+                          request={"command": cmd, "tool": pull["tool"],
+                                   "url": pull["url"]},
+                          tags=["telnet-payload-pull"])
+            else:
+                self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                          dst_port=self.port, event_type="request",
+                          summary=f"telnet shell: {cmd}",
+                          request={"command": cmd}, tags=[])
+            writer.write(b"# ")
+            await writer.drain()
 
     async def start(self) -> None:
         self._server = await asyncio.start_server(

