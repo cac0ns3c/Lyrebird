@@ -205,7 +205,7 @@ emulated technique ships with its paired detection.
 
 ### Detection analytics
 
-Beyond single-event Sigma rules, two analytics run over a captured session for
+Beyond single-event Sigma rules, three analytics run over a captured session for
 the statistical / behavioural cases:
 
 - `python -m lyrebird.beacons --session <jsonl>` — beaconing, jitter (via
@@ -214,6 +214,9 @@ the statistical / behavioural cases:
   traffic-mimicry and encryption tells: protocol-on-unexpected-port, domain-
   fronting heuristics, browser-UA-but-bot, and high-entropy (encrypted) bodies.
   The defensive pair to Phase 3.
+- `python -m lyrebird.dns_tunnel --session <jsonl>` — DNS tunneling / data-exfil
+  channels: high-entropy, near-all-unique subdomains streamed under one parent
+  domain, distinct from the single-query long-label DGA rule.
 
 ## Layout
 
@@ -230,6 +233,7 @@ src/lyrebird/
   analyze.py       # model-assisted session triage
   beacons.py       # beacon / jitter / channel-rotation analytic
   mimicry.py       # traffic-mimicry / encryption-tell analytic
+  dns_tunnel.py    # DNS tunneling / exfil analytic
   services/        # http, dns, dns_tcp, smtp, pop3, imap, ftp, tftp,
                    #   irc, ntp, tls_capture, tcp_sink
   models/          # anthropic, openai, gemini, local, mock + sanitize
