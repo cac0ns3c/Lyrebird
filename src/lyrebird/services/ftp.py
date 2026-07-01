@@ -1,13 +1,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """FTP emulation service.
 
-Emulates an FTP server's control channel and a passive data channel so that a
-sample logging in and uploading (STOR) — e.g. exfiltrating collected data or
-dropping a secondary file — has its upload captured as an artifact. RETR/LIST
-return placeholders. Credentials and commands are logged.
+Emulates an FTP server's control channel and a data channel so that a sample
+logging in and uploading (STOR) — e.g. exfiltrating collected data or dropping a
+secondary file — has its upload captured as an artifact. RETR/LIST return
+placeholders. Credentials and commands are logged.
 
-Passive mode only (the common case for clients behind NAT); active-mode PORT is
-a documented next addition.
+Both passive and active (PORT/EPRT) modes are supported. The active-mode data
+connection is confined to the client's own control-channel source IP: a PORT/
+EPRT naming a different host (FTP bounce / data-redirect) is refused, never
+dialed, and tagged 'ftp-bounce' — the emulator never opens a data socket to a
+third party.
 """
 
 from __future__ import annotations
@@ -19,6 +22,13 @@ from ..base import BaseService
 from ..events import Artifact
 
 _FAKE_LISTING = b"-rw-r--r-- 1 lab lab 0 Jan 01 00:00 readme.txt\r\n"
+
+
+class _BounceRefused(ConnectionError):
+    """Raised when a PORT/EPRT names a host other than the client itself, so the
+    data connection is refused instead of dialed (FTP-bounce guard). Being a
+    ConnectionError, it is caught by the existing `except Exception` in the
+    STOR/RETR/LIST handlers, which reply 426."""
 
 
 class _FtpSession:
@@ -33,14 +43,37 @@ class _FtpSession:
         self._data_server: Optional[asyncio.AbstractServer] = None
         self._data_conn: "asyncio.Future[tuple]" = asyncio.get_running_loop().create_future()
         self.active_addr: Optional[tuple[str, int]] = None   # set by PORT (active mode)
+        self.active_bounce = False   # PORT/EPRT named a non-client host → refuse
 
     def reply(self, line: str) -> None:
         self.writer.write((line + "\r\n").encode("utf-8", "replace"))
 
+    def _set_active(self, ip: str, dport: int, command: str, dst_port: int) -> None:
+        """Store the active-mode data target, confined to the client's own IP.
+        A cross-host target (FTP bounce / redirect) is NOT stored for dialing —
+        it is flagged and reported so the transfer is refused, never dialed."""
+        if ip == self.peer[0]:
+            self.active_addr = (ip, dport)
+            self.active_bounce = False
+        else:
+            self.active_addr = None
+            self.active_bounce = True
+            self.svc.emit(
+                transport="tcp", src_ip=self.peer[0], src_port=self.peer[1],
+                dst_port=dst_port, event_type="request",
+                summary=f"ftp {command} bounce -> {ip}:{dport} (control src {self.peer[0]})",
+                request={"command": command, "requested_host": ip,
+                         "requested_port": dport, "control_src": self.peer[0]},
+                tags=["ftp-bounce"])
+
     async def get_data_streams(self) -> tuple:
-        """Return (reader, writer) for the data channel in whichever mode the
-        client negotiated: active (we dial back to the PORT address) or passive
-        (we accept the connection on the port we advertised)."""
+        """Return (reader, writer) for the data channel. Active mode dials back
+        ONLY to the client's own IP; a flagged bounce target is refused, never
+        dialed (raises _BounceRefused, which the data handlers turn into 426)."""
+        if self.active_bounce:
+            self.active_bounce = False
+            self.active_addr = None
+            raise _BounceRefused("active-mode target is not the client host")
         if self.active_addr is not None:
             r, w = await asyncio.wait_for(
                 asyncio.open_connection(*self.active_addr), timeout=15)
@@ -117,7 +150,7 @@ class _FtpSession:
                         nums = [int(x) for x in arg.split(",")]
                         ip = ".".join(str(n) for n in nums[:4])
                         dport = (nums[4] << 8) + nums[5]
-                        self.active_addr = (ip, dport)
+                        self._set_active(ip, dport, "PORT", port)
                         self.reply("200 PORT command successful")
                     except (ValueError, IndexError):
                         self.reply("501 bad PORT")
@@ -125,7 +158,7 @@ class _FtpSession:
                     # extended active: |proto|addr|port|
                     try:
                         fields = arg.split("|")
-                        self.active_addr = (fields[2], int(fields[3]))
+                        self._set_active(fields[2], int(fields[3]), "EPRT", port)
                         self.reply("200 EPRT command successful")
                     except (ValueError, IndexError):
                         self.reply("501 bad EPRT")
