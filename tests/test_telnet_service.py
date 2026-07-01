@@ -175,7 +175,12 @@ def test_telnet_bruteforce_fires_on_failed_disconnect(tmp_path):
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         for u, p in [(b"root", b"1"), (b"admin", b"2"), (b"root", b"3")]:
             await _login(reader, writer, u, p)
-        writer.close()                      # hang up without ever succeeding
+        writer.write_eof()                  # hang up (EOF) without ever succeeding
+        # read until the server closes its side — this deterministically waits
+        # for the handler to run through the telnet-bruteforce emit + close,
+        # rather than racing asyncio.run()'s loop teardown.
+        await asyncio.wait_for(reader.read(), timeout=5)
+        writer.close()
         try:
             await writer.wait_closed()
         except Exception:
