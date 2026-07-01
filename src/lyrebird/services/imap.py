@@ -56,7 +56,7 @@ class ImapService(BaseService):
                     idle_max = float(self.cfg.get("idle_max", 60))
                     state = {"pushed": False}
 
-                    async def _push() -> None:
+                    async def _push(push_delay=push_delay, state=state) -> None:
                         try:
                             await asyncio.sleep(push_delay)
                             writer.write(b"* 1 EXISTS\r\n")

@@ -47,7 +47,7 @@ Changelog = "https://github.com/cac0ns3c/Lyrebird/blob/main/CHANGELOG.md"
 Documentation = "https://cac0ns3c.github.io/Lyrebird/"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "build>=1.2", "twine>=5.0"]
+dev = ["pytest>=8.0", "build>=1.2", "twine>=5.0", "ruff>=0.6"]
 
 [project.scripts]
 lyrebird = "lyrebird.cli:main"
@@ -58,3 +58,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+# Gate on real-bug rules: pyflakes (F, unused/undefined) + bugbear (B). Style
+# (line length, import order, semicolons) is intentionally NOT enforced — the
+# gate catches regressions, not formatting.
+select = ["F", "B"]

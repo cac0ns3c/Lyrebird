@@ -17,7 +17,7 @@ def test_all_expected_services_registered():
 
 def test_services_instantiate(tmp_path):
     sink = EventSink(session="t", log_path=tmp_path / "e.jsonl", echo=False)
-    for name, cls in REGISTRY.items():
+    for cls in REGISTRY.values():
         svc = cls(cfg={"ports": [9999]}, sink=sink,
                   bind_address="127.0.0.1", data_dir=tmp_path, tls={})
         assert svc.name

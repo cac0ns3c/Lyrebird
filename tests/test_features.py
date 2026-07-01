@@ -63,7 +63,7 @@ def test_validate_json_enforces_required():
     assert data["verdict"] == "benign"
     try:
         sanitize.validate_json('{"summary":"x"}', ["summary", "verdict"])
-        assert False, "should have raised"
+        raise AssertionError("should have raised")
     except ValueError:
         pass
 

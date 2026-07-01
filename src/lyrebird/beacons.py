@@ -60,7 +60,7 @@ def _target(event: dict[str, Any]) -> str:
 
 def _intervals(times: list[float]) -> list[float]:
     times = sorted(times)
-    return [b - a for a, b in zip(times, times[1:]) if b > a]
+    return [b - a for a, b in zip(times, times[1:], strict=False) if b > a]
 
 
 def _classify(intervals: list[float]) -> dict[str, Any]:

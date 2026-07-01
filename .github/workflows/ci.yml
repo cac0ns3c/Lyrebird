@@ -60,3 +60,17 @@ jobs:
         run: |
           PYTHONPATH=src python -c "import lyrebird, lyrebird.orchestrator, lyrebird.beacons, lyrebird.mimicry"
           PYTHONPATH=src python -m lyrebird --help
+
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ruff
+        run: pip install ruff
+      - name: Lint (ruff — pyflakes + bugbear real-bug rules)
+        run: ruff check .
