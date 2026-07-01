@@ -91,6 +91,12 @@ class _FtpSession:
                 asyncio.open_connection(*self.active_addr), timeout=15)
             self.active_addr = None
             return r, w
+        if self._data_server is None:
+            # No PORT/EPRT and no PASV/EPSV listener in effect — fail fast rather
+            # than stalling ~15s awaiting a passive connection that will never
+            # arrive (e.g. a data command after a refused bounce, with no fresh
+            # PORT/PASV). Fail-safe: still 426, still no outbound dial.
+            raise ConnectionError("no data channel: PORT/EPRT or PASV/EPSV required")
         return await asyncio.wait_for(self._data_conn, timeout=15)
 
     async def open_passive(self) -> int:

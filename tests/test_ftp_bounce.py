@@ -315,3 +315,39 @@ def test_ftp_ipv6_eprt_is_bounce_when_not_client(tmp_path, monkeypatch):
     assert bounce, "no ftp-bounce for IPv6 EPRT"
     assert bounce[0]["request"]["requested_host"] == "::1"
     assert bounce[0]["request"]["command"] == "EPRT"
+
+
+def test_ftp_data_command_without_channel_fails_fast(tmp_path):
+    # A data command with no active PORT/EPRT and no PASV/EPSV listener must fail
+    # PROMPTLY (426), not stall ~15s awaiting a passive future that never
+    # resolves. Covers a second STOR after a refused bounce (get_data_streams
+    # clears the bounce/active state on the first refusal, leaving no channel).
+    svc, sink, log = _mksvc(tmp_path)
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        await reader.readline()                               # 220
+        writer.write(b"PORT 192,0,2,1,17,112\r\n"); await writer.drain()   # bounce
+        await reader.readline()                               # 200
+        writer.write(b"STOR a\r\n"); await writer.drain()
+        await reader.readline()                               # 150
+        r1 = await asyncio.wait_for(reader.readline(), timeout=5)   # 426 (bounce)
+        # second STOR with NO new PORT/PASV — must fail fast, not stall ~15s
+        writer.write(b"STOR b\r\n"); await writer.drain()
+        await reader.readline()                               # 150
+        r2 = await asyncio.wait_for(reader.readline(), timeout=5)   # 426, bounded
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        await svc.stop()
+        return r1, r2
+
+    r1, r2 = asyncio.run(scenario())
+    sink.close()
+    assert b"426" in r1
+    # the timeout=5 above would fail on the old ~15s stall — this proves fast-fail
+    assert b"426" in r2
