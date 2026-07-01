@@ -108,6 +108,7 @@ so it never drifts. Regenerate with `python scripts/gen_reference.py`.
 | TLS (fingerprint + serve) | TCP | ✅ implemented | JA3/JA4 + SNI, terminates & serves, same-connection SNI-vs-Host (off by default) |
 | TLS fingerprint tap | TCP | ✅ implemented | JA3/JA4 + SNI capture then close (off by default) |
 | SSH | TCP | ✅ implemented | asyncssh honeypot; captures brute-force credentials, then a fake shell logs commands (ssh-bruteforce, ssh-payload-pull) |
+| Telnet | TCP | ✅ implemented | plaintext IoT/Mirai honeypot; brute-force creds → fake shell logs commands (telnet-bruteforce, telnet-payload-pull) |
 
 > The SSH honeypot uses the `asyncssh` library (a required dependency). If `asyncssh` is unavailable the SSH service is skipped and the rest of the emulator keeps running.
 
@@ -241,7 +242,7 @@ tests/
 
 ## Status
 
-All fourteen services and all three detection-analytics phases are implemented,
+All fifteen services and all three detection-analytics phases are implemented,
 tested, and runnable; the suite boots end to end and every service emits
 telemetry. The plugin contract is stable, so the remaining items (IMAP IDLE,
 active-mode edge cases, packet-layer JA3 enrichment) are additive. See `SCOPE.md`
