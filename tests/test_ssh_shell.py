@@ -35,6 +35,7 @@ def test_curl_payload_pull_extracts_url():
 def test_busybox_wget_recognised():
     _, pull = respond("busybox wget http://h.test/f")
     assert pull is not None
+    assert pull["tool"] == "wget"  # the real applet, not the busybox wrapper
     assert pull["url"] == "http://h.test/f"
 
 

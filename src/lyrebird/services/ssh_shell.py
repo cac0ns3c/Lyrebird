@@ -50,8 +50,13 @@ def respond(command: str) -> tuple[str, dict | None]:
     except ValueError:
         tokens = cmd.split()
 
-    tool = next((t.rsplit("/", 1)[-1] for t in tokens
-                 if t.rsplit("/", 1)[-1] in _PULL_TOOLS), None)
+    found = [t.rsplit("/", 1)[-1] for t in tokens
+             if t.rsplit("/", 1)[-1] in _PULL_TOOLS]
+    # Prefer the real download applet over the `busybox` multi-call wrapper, so
+    # the Mirai-style `busybox wget <url>` loader is attributed to wget, not
+    # busybox (request.tool is a surfaced ssh-payload-pull detection field).
+    non_wrapper = [t for t in found if t != "busybox"]
+    tool = (non_wrapper[0] if non_wrapper else found[0]) if found else None
     pull: dict | None = None
     if tool is not None:
         m = _URL_RE.search(cmd)

