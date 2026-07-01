@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# A coarse SIEM-side companion to lyrebird.dns_tunnel. Entropy / parent-domain /
+# uniqueness analysis is statistical and lives in the analytic; this catches the
+# sustained-long-label case a single-query DGA rule would miss.
+title: Repeated Long DNS Labels From Single Source (DNS Tunnel Base)
+name: lyrebird_dns_longlabel_base
+status: experimental
+description: Base event selection for DNS-tunnel correlation — long-label DNS requests.
+author: Lyrebird
+date: 2026/07/01
+logsource:
+  product: lyrebird
+  service: dns
+detection:
+  selection:
+    service: 'dns'
+    tags|contains: 'long-label'
+  condition: selection
+level: informational
+---
+title: Sustained Long-Label DNS From Single Source (Possible Tunnel/Exfil)
+id: 7c1e9a52-3f84-4b60-9d17-2a8f0c6b5e43
+status: experimental
+description: >
+  A source issuing many long-label DNS queries to the emulator within a short
+  window is consistent with data exfil / tunneling over DNS (one query per data
+  chunk). For entropy, parent-domain, and uniqueness specifics, run
+  `python -m lyrebird.dns_tunnel` on the session.
+author: Lyrebird
+date: 2026/07/01
+correlation:
+  type: event_count
+  rules:
+    - lyrebird_dns_longlabel_base
+  group-by:
+    - src_ip
+  timespan: 10m
+  condition:
+    gte: 10
+level: high
