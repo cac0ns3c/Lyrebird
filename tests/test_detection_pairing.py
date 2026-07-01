@@ -36,7 +36,7 @@ CONTEXT_OR_ANALYTIC_TAGS = {
     "txt-query",                   # dns context; long-label is the signal
     "model-response",              # http response provenance (data-out is paired)
     "faketime",                    # benign lab-clock shift, not malicious
-    "sink", "tftp", "dns-tcp",     # service-name context tags
+    "sink", "tftp", "dns-tcp", "quic",  # service-name context tags
     "upstream-resolved",           # egress-occurred marker (realistic DNS mode)
 }
 

@@ -7,3 +7,4 @@ pyyaml>=6.0
 cryptography>=42.0
 requests>=2.31
 asyncssh>=2.14
+aioquic>=1.0

@@ -42,6 +42,7 @@ DEFAULTS: dict[str, Any] = {
         "telnet":   {"enabled": True,  "port": 23,
                      "banner": "\r\nAM335x/Linux login service\r\n",
                      "accept_after": 3, "weak_creds": [], "bruteforce_threshold": 3},
+        "quic":     {"enabled": True,  "port": 443,  "body": "OK"},
         # Fingerprinting HTTPS emulator: peeks ClientHello (JA3/JA4 + SNI), then
         # terminates with the lab cert and serves content. Off by default to
         # avoid clashing with the HTTP service's TLS terminator on 443; enable it

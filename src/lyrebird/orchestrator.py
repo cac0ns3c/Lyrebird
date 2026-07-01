@@ -30,6 +30,7 @@ from .services.tcp_sink import TcpSinkService
 from .services.tftp import TftpService
 from .services.telnet import TelnetService
 from .services.tls import TlsService
+from .services.quic import QuicService
 from .services.tls_capture import TlsCaptureService
 
 try:
@@ -53,6 +54,7 @@ REGISTRY: dict[str, Type[BaseService]] = {
     "ntp": NtpService,
     "telnet": TelnetService,
     "tls": TlsService,
+    "quic": QuicService,
     "tls_capture": TlsCaptureService,
     "tcp_sink": TcpSinkService,
 }
@@ -119,6 +121,8 @@ class Orchestrator:
             elif name == "dns":
                 svc = cls(profiles=self._profiles_for("dns"), **kwargs)  # type: ignore[call-arg]
             elif name == "tls":
+                svc = cls(ca=self.ca, **kwargs)  # type: ignore[call-arg]
+            elif name == "quic":
                 svc = cls(ca=self.ca, **kwargs)  # type: ignore[call-arg]
             else:
                 svc = cls(**kwargs)
