@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: NTP Control/Private Query By Sample (mode 6/7 — MONLIST Amplification Recon)
+id: 4d9c1f83-72a6-4e05-b1d8-6f3a0e2c7b95
+status: experimental
+description: >
+  The Lyrebird NTP emulator flags a request in mode 6 (ntpq control) or mode 7
+  (private — including MONLIST, opcode 42, the classic NTP DDoS-reflection
+  vector) as 'ntp-control-query'. In a single-sample lab there is no monitoring
+  infrastructure, so a sample sending a control/private NTP query — rather than a
+  time sync — is a reflection/amplification-recon tell. The emulator logs the
+  probe but never sends an amplified response.
+  Pair: services/ntp.py tags such datagrams 'ntp-control-query' (mode,
+  request_code recorded).
+author: Lyrebird
+date: 2026/07/01
+logsource:
+  product: lyrebird
+  service: ntp
+detection:
+  selection:
+    service: 'ntp'
+    tags|contains: 'ntp-control-query'
+  condition: selection
+fields:
+  - src_ip
+  - request.mode
+  - request.request_code
+falsepositives:
+  - Legitimate NTP monitoring (ntpq, mode 6) outside a single-sample analysis lab
+level: high
