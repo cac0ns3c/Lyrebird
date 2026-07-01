@@ -19,6 +19,7 @@ from aioquic.quic.events import ProtocolNegotiated
 
 from ..base import BaseService
 from ..certs import LabCA
+from ..events import Artifact
 
 
 class _H3Protocol(QuicConnectionProtocol):
@@ -41,9 +42,10 @@ class _H3Protocol(QuicConnectionProtocol):
             return
         for h3_event in self._http.handle_event(event):
             if isinstance(h3_event, HeadersReceived):
-                self._hdr[h3_event.stream_id] = [
-                    (k.decode("utf-8", "replace"), v.decode("utf-8", "replace"))
-                    for k, v in h3_event.headers]
+                if h3_event.stream_id not in self._hdr:   # first HEADERS wins; ignore h3 trailers
+                    self._hdr[h3_event.stream_id] = [
+                        (k.decode("utf-8", "replace"), v.decode("utf-8", "replace"))
+                        for k, v in h3_event.headers]
                 self._body.setdefault(h3_event.stream_id, bytearray())
                 if h3_event.stream_ended:
                     self._finish(h3_event.stream_id)
@@ -61,11 +63,15 @@ class _H3Protocol(QuicConnectionProtocol):
         except Exception:
             pass
         if self._http is not None:
-            self._http.send_headers(
-                stream_id,
-                [(b":status", b"200"), (b"content-type", b"text/plain")])
-            self._http.send_data(stream_id, self._service.body, end_stream=True)
-            self.transmit()
+            try:
+                self._http.send_headers(
+                    stream_id,
+                    [(b":status", b"200"), (b"content-type", b"text/plain")])
+                self._http.send_data(stream_id, self._service.body, end_stream=True)
+                self.transmit()
+            except Exception:
+                # client may have reset the stream (STOP_SENDING) before we replied
+                pass
 
 
 class QuicService(BaseService):
@@ -88,23 +94,16 @@ class QuicService(BaseService):
         tags = ["quic", "http3-transport"]
         if not ua:
             tags.append("missing-user-agent")
-        req: dict[str, Any] = {
-            "method": method, "authority": authority, "path": path,
-            "scheme": h.get(":scheme", ""), "user_agent": ua,
-            "headers": h, "body_len": len(body),
-        }
-        if body:
-            try:
-                self.capture_dir.mkdir(parents=True, exist_ok=True)
-                dest = self.capture_dir / f"h3-{peer[1]}-{len(body)}.bin"
-                dest.write_bytes(body)
-                req["body_path"] = str(dest)
-            except Exception:
-                pass
-        self.emit(transport="quic", src_ip=peer[0], src_port=peer[1],
+        # Content-addressed capture (sha256, collision-free) via the shared helper,
+        # like the sibling services — never overwrites earlier evidence.
+        artifacts = [Artifact.from_bytes("h3-body", body, self.capture_dir)] if body else []
+        self.emit(transport="udp", src_ip=peer[0], src_port=peer[1],
                   dst_port=self.port, event_type="request",
                   summary=f"h3 {method} {authority}{path}",
-                  request=req, tags=tags)
+                  request={"method": method, "authority": authority, "path": path,
+                           "scheme": h.get(":scheme", ""), "user_agent": ua,
+                           "headers": h, "body_len": len(body)},
+                  artifacts=artifacts, tags=tags)
 
     async def start(self) -> None:
         config = QuicConfiguration(is_client=False, alpn_protocols=["h3"])

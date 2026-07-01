@@ -111,3 +111,23 @@ def test_quic_missing_user_agent_and_body_capture(tmp_path):
     assert h3, "no http3-transport event"
     assert "missing-user-agent" in h3[0]["tags"]        # no UA header
     assert h3[0]["request"]["body_len"] == len(b"payload-bytes")
+
+
+def test_quic_body_capture_is_collision_free(tmp_path):
+    # Two equal-length bodies on one connection must NOT overwrite each other
+    # (content-addressed Artifact capture, not ad-hoc port+len naming).
+    svc, sink, log = _mksvc(tmp_path)
+    _run(svc, [
+        ([(b":method", b"POST"), (b":scheme", b"https"),
+          (b":authority", b"c2.bad"), (b":path", b"/a")], b"AAAAAAAAAA"),
+        ([(b":method", b"POST"), (b":scheme", b"https"),
+          (b":authority", b"c2.bad"), (b":path", b"/b")], b"BBBBBBBBBB"),
+    ])
+    sink.close()
+    events = _wait_for_events(log)
+    arts = [a for e in events for a in e.get("artifacts", [])]
+    assert len(arts) == 2
+    assert len({a["sha256"] for a in arts}) == 2          # distinct, no overwrite
+    contents = {Path(a["path"]).read_bytes() for a in arts}
+    assert contents == {b"AAAAAAAAAA", b"BBBBBBBBBB"}     # both payloads preserved
+    assert all(e["transport"] == "udp" for e in events)   # schema contract (tcp|udp)
