@@ -37,4 +37,7 @@ correlation:
   timespan: 10m
   condition:
     gte: 10
-level: high
+# medium to match the project's coarse-correlation posture (cf. beacon_correlation);
+# high-entropy benign automated DNS can also reach this volume. The lyrebird.dns_tunnel
+# analytic (entropy + uniqueness + parent grouping) is the precise companion.
+level: medium

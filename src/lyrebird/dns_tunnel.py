@@ -8,6 +8,19 @@ session's DNS queries by (source, parent domain) and flagging channels by volume
 per-label entropy, and subdomain uniqueness.
 
     python -m lyrebird.dns_tunnel --session labdata/events/<id>.jsonl
+
+Limitations (heuristic, analyst-triaged — not an automated blocker):
+  * Parent domain is the last two labels (dependency-free eTLD+1 approximation),
+    so a channel under a multi-label public suffix (co.uk, com.au) is attributed
+    to the suffix, and unrelated traffic under it can share a bucket. Detection
+    still fires (the encoded label carries the entropy); the reported
+    ``parent_domain`` is approximate for those TLDs.
+  * Any high-entropy, near-all-unique subdomain stream is flagged. If a lab
+    redirects ALL DNS to the emulator, benign automated traffic (telemetry GUIDs,
+    CDN cache-busting hashes, OCSP hash-prefix lookups) can also match — triage
+    findings by parent domain.
+  * No time window: queries accumulate across the whole session. The coarse Sigma
+    companion (dns_tunnel_correlation.yml) adds the SIEM-side windowed view.
 """
 from __future__ import annotations
 

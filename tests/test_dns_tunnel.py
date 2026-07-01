@@ -64,3 +64,36 @@ def test_txt_ratio_recorded():
               for i in range(12)]
     f = analyze_dns_tunnel(events)["findings"][0]
     assert f["txt_ratio"] == 1.0
+
+
+def test_multilabel_public_suffix_is_approximate():
+    # Documented limitation: last-2-labels attributes the parent to the public
+    # suffix (co.uk), not the registrable domain. Detection still fires because
+    # the encoded label carries the entropy.
+    assert parent_domain("chunk.attacker.co.uk") == "co.uk"
+    assert subdomain("chunk.attacker.co.uk") == "chunk.attacker"
+    events = [_dns_event("10.0.0.10", f"{_encoded(i)}.attacker.co.uk")
+              for i in range(12)]
+    report = analyze_dns_tunnel(events)
+    assert report["channels_flagged"] == 1
+    assert report["findings"][0]["parent_domain"] == "co.uk"   # approximate
+
+
+def test_isolates_sources_and_ignores_benign_in_same_session():
+    exfil = [_dns_event("10.0.0.11", f"{_encoded(i)}.t.evil.com") for i in range(12)]
+    benign = [_dns_event("10.0.0.12", q) for q in
+              ["www.google.com", "mail.google.com", "api.github.com"]]
+    report = analyze_dns_tunnel(exfil + benign)
+    assert report["channels_flagged"] == 1
+    assert report["findings"][0]["src_ip"] == "10.0.0.11"      # only the exfil source
+
+
+def test_tolerates_malformed_events():
+    events = [
+        {"service": "dns", "event_type": "request"},           # no request/src_ip
+        {"service": "dns", "event_type": "request", "request": {"qname": ""}},
+        {"service": "dns", "event_type": "request", "request": {"qname": "evil.com."}},
+        {"service": "http", "event_type": "request", "request": {"qname": "x.y.z"}},
+    ]
+    report = analyze_dns_tunnel(events)                          # no crash
+    assert report["channels_flagged"] == 0

@@ -54,7 +54,7 @@ Levels are shipped defaults — tune to your environment.
 | Suspicious Long DNS Label Against Lab Emulator (Possible DGA / Tunneling) | `dns` | `tags=long-label` | medium |
 | DNS Resolution For Non-Existent Domain (Possible Sandbox-Detection Probe) | `dns` | `tags=sandbox-probe` | medium |
 | Repeated Long DNS Labels From Single Source (DNS Tunnel Base) | `dns` | `tags=long-label` | informational |
-| Sustained Long-Label DNS From Single Source (Possible Tunnel/Exfil) | `—` | `correlation (event_count)` | high |
+| Sustained Long-Label DNS From Single Source (Possible Tunnel/Exfil) | `—` | `correlation (event_count)` | medium |
 | FTP Bounce / Active-Mode Data Redirect By Sample | `ftp` | `tags=ftp-bounce` | high |
 | File Upload To Lab Emulator Over FTP/TFTP (Possible Exfil or Drop) | `—` | `tags=upload` | medium |
 | HTTP Request With Missing User-Agent To Lab Emulator (Possible Beacon) | `http` | `tags=missing-user-agent` | low |
