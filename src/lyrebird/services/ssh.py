@@ -42,14 +42,35 @@ class _ConnHandler(asyncssh.SSHServer):
 
     def validate_password(self, username: str, password: str) -> bool:
         self.attempts += 1
+        cfg = self.service.cfg
+        weak = cfg.get("weak_creds") or []
+        accept_after = int(cfg.get("accept_after", 3))
+        accept = (any(username == c.get("user") and password == c.get("password")
+                      for c in weak)
+                  or self.attempts >= accept_after)
+        if accept:
+            self.accepted = True
         self.service.emit(
             transport="tcp", src_ip=self.peer[0], src_port=self.peer[1],
             dst_port=self.service.port, event_type="auth",
-            summary=f"ssh auth user='{username}' accepted=False",
+            summary=f"ssh auth user='{username}' accepted={accept}",
             request={"user": username, "password": password,
-                     "method": "password", "accepted": False},
+                     "method": "password", "accepted": accept},
             tags=["credentials"])
-        return False
+        return accept
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        threshold = int(self.service.cfg.get("bruteforce_threshold", 3))
+        if self.attempts >= threshold:
+            self.service.emit(
+                transport="tcp", src_ip=self.peer[0], src_port=self.peer[1],
+                dst_port=self.service.port, event_type="request",
+                summary=(f"ssh brute-force {self.attempts} attempts "
+                         f"client='{self.client_version}' accepted={self.accepted}"),
+                request={"attempts": self.attempts,
+                         "client_version": self.client_version,
+                         "accepted": self.accepted},
+                tags=["ssh-bruteforce"])
 
 
 class SshService(BaseService):

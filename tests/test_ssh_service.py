@@ -77,3 +77,58 @@ def test_ssh_host_key_persists(tmp_path):
     asyncio.run(start_stop())
     assert key_path.read_bytes() == first  # reused, not regenerated
     sink.close()
+
+
+def test_ssh_accepts_after_threshold_and_flags_bruteforce(tmp_path):
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": 3, "bruteforce_threshold": 3},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        conn = await asyncssh.connect(
+            "127.0.0.1", port, username="root", known_hosts=None,
+            client_factory=_client(["wrong1", "wrong2", "letmein"]))
+        conn.close()
+        await conn.wait_closed()
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    creds = [e for e in events if "credentials" in e.get("tags", [])]
+    assert len(creds) == 3
+    assert creds[-1]["request"]["accepted"] is True
+    bf = [e for e in events if "ssh-bruteforce" in e.get("tags", [])]
+    assert bf, "no ssh-bruteforce signal"
+    assert bf[0]["request"]["attempts"] == 3
+    assert bf[0]["request"]["accepted"] is True
+    assert isinstance(bf[0]["request"]["client_version"], str)
+
+
+def test_ssh_weak_cred_accepted_immediately(tmp_path):
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": 99,
+                          "weak_creds": [{"user": "root", "password": "root"}],
+                          "bruteforce_threshold": 99},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        conn = await asyncssh.connect("127.0.0.1", port, username="root",
+                                      known_hosts=None, client_factory=_client(["root"]))
+        conn.close()
+        await conn.wait_closed()
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    creds = [e for e in events if "credentials" in e.get("tags", [])]
+    assert len(creds) == 1
+    assert creds[0]["request"]["accepted"] is True
+    assert [e for e in events if "ssh-bruteforce" in e.get("tags", [])] == []
