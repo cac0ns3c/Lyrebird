@@ -16,12 +16,24 @@ third party.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 from typing import Any, Optional
 
 from ..base import BaseService
 from ..events import Artifact
 
 _FAKE_LISTING = b"-rw-r--r-- 1 lab lab 0 Jan 01 00:00 readme.txt\r\n"
+
+
+def _same_host(a: str, b: str) -> bool:
+    """True if two address strings refer to the same host — tolerant of IPv6
+    representation differences (e.g. '::1' vs '0:0:0:0:0:0:0:1'). Falls back to
+    string equality when either side isn't a parseable IP (scope id / hostname),
+    which fails safe: a non-match is treated as a bounce, never dialed."""
+    try:
+        return ipaddress.ip_address(a) == ipaddress.ip_address(b)
+    except ValueError:
+        return a == b
 
 
 class _BounceRefused(ConnectionError):
@@ -52,7 +64,7 @@ class _FtpSession:
         """Store the active-mode data target, confined to the client's own IP.
         A cross-host target (FTP bounce / redirect) is NOT stored for dialing —
         it is flagged and reported so the transfer is refused, never dialed."""
-        if ip == self.peer[0]:
+        if _same_host(ip, self.peer[0]):
             self.active_addr = (ip, dport)
             self.active_bounce = False
         else:
