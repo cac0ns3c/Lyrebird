@@ -82,6 +82,10 @@ class _FtpSession:
         return await asyncio.wait_for(self._data_conn, timeout=15)
 
     async def open_passive(self) -> int:
+        # A PASV/EPSV supersedes any prior active-mode (PORT/EPRT) state so a
+        # stale or bounce active target can't poison this passive transfer.
+        self.active_addr = None
+        self.active_bounce = False
         # reset the future for a fresh transfer
         loop = asyncio.get_running_loop()
         self._data_conn = loop.create_future()
