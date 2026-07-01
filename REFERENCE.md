@@ -61,6 +61,7 @@ Levels are shipped defaults — tune to your environment.
 | HTTP Request With Automation User-Agent To Lab Emulator (Possible Beacon) | `http` | `tags=suspicious-user-agent` | medium |
 | IMAP IDLE Used By Sample (Possible Mailbox C2 Long-Poll) | `imap` | `tags=imap-idle` | medium |
 | IRC Channel Join Observed By Lab Emulator (Possible Botnet C2) | `irc` | `tags=channel-join` | high |
+| NTP Control/Private Query By Sample (mode 6/7 — MONLIST Amplification Recon) | `ntp` | `tags=ntp-control-query` | high |
 | Bulk-Recipient Mail Captured By Lab Emulator (Possible Mass Mailer) | `smtp` | `tags=bulk-recipients` | medium |
 | SSH Brute-Force By Sample (Credential Guessing / Lateral Movement) | `ssh` | `tags=ssh-bruteforce` | medium |
 | Second-Stage Payload Pull Over SSH Shell | `ssh` | `tags=ssh-payload-pull` | high |
