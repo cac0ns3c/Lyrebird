@@ -1,0 +1,55 @@
+name: Publish to PyPI
+
+# Publishes lyrebird-emulator to PyPI when a GitHub Release is published.
+# Uses PyPI Trusted Publishing (OIDC) — no API token secret required.
+# One-time setup on PyPI: add a Trusted Publisher for project "lyrebird-emulator"
+#   owner: cac0ns3c   repo: Lyrebird   workflow: publish.yml   environment: pypi
+# (see https://docs.pypi.org/trusted-publishers/). `workflow_dispatch` lets you
+# publish the current main manually once that publisher exists.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - name: Check metadata with twine
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/lyrebird-emulator
+    permissions:
+      id-token: write        # OIDC token for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

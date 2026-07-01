@@ -1,14 +1,30 @@
 [project]
-name = "lyrebird"
+name = "lyrebird-emulator"
 version = "0.1.0"
 description = "Modern internet-services emulation suite for malware analysis labs"
 readme = "README.md"
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
+authors = [{ name = "Lyrebird contributors" }]
+keywords = [
+    "malware-analysis", "inetsim", "sandbox", "dfir", "sigma",
+    "honeypot", "emulation", "detection", "threat-detection",
+    "incident-response",
+]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Topic :: Security",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Information Technology",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Emulators",
 ]
 dependencies = [
     "fastapi>=0.110",
@@ -22,14 +38,21 @@ dependencies = [
     "asyncssh>=2.14",
 ]
 
+[project.urls]
+Homepage = "https://github.com/cac0ns3c/Lyrebird"
+Repository = "https://github.com/cac0ns3c/Lyrebird"
+Issues = "https://github.com/cac0ns3c/Lyrebird/issues"
+Changelog = "https://github.com/cac0ns3c/Lyrebird/blob/main/CHANGELOG.md"
+Documentation = "https://cac0ns3c.github.io/Lyrebird/"
+
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "build>=1.2", "twine>=5.0"]
 
 [project.scripts]
 lyrebird = "lyrebird.cli:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
