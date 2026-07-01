@@ -28,6 +28,7 @@ from .services.pop3 import Pop3Service
 from .services.smtp import SmtpService
 from .services.tcp_sink import TcpSinkService
 from .services.tftp import TftpService
+from .services.telnet import TelnetService
 from .services.tls import TlsService
 from .services.tls_capture import TlsCaptureService
 
@@ -50,6 +51,7 @@ REGISTRY: dict[str, Type[BaseService]] = {
     "tftp": TftpService,
     "irc": IrcService,
     "ntp": NtpService,
+    "telnet": TelnetService,
     "tls": TlsService,
     "tls_capture": TlsCaptureService,
     "tcp_sink": TcpSinkService,

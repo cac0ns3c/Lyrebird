@@ -39,6 +39,9 @@ DEFAULTS: dict[str, Any] = {
         "tftp":     {"enabled": True,  "port": 69},
         "irc":      {"enabled": True,  "port": 6667},
         "ntp":      {"enabled": True,  "port": 123,  "faketime_delta": 0},
+        "telnet":   {"enabled": True,  "port": 23,
+                     "banner": "\r\nAM335x/Linux login service\r\n",
+                     "accept_after": 3, "weak_creds": [], "bruteforce_threshold": 3},
         # Fingerprinting HTTPS emulator: peeks ClientHello (JA3/JA4 + SNI), then
         # terminates with the lab cert and serves content. Off by default to
         # avoid clashing with the HTTP service's TLS terminator on 443; enable it
