@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: Telnet Brute-Force By Sample (IoT/Mirai Credential Guessing)
+id: 3a5c8e17-9b42-4d6f-8e21-0c7b4a9f2d63
+status: experimental
+description: >
+  The Lyrebird Telnet honeypot tags a connection 'telnet-bruteforce' once it
+  makes repeated login attempts. In an isolated single-sample lab there are no
+  operators, so a sample guessing Telnet credentials is the classic IoT/Mirai
+  brute-force tell.
+  Pair: services/telnet.py tags such connections 'telnet-bruteforce' (attempts,
+  client, and accepted recorded).
+author: Lyrebird
+date: 2026/07/01
+logsource:
+  product: lyrebird
+  service: telnet
+detection:
+  selection:
+    service: 'telnet'
+    tags|contains: 'telnet-bruteforce'
+  condition: selection
+fields:
+  - src_ip
+  - request.attempts
+  - request.accepted
+  - request.client
+falsepositives:
+  - Legitimate administrators or scanners using Telnet outside a single-sample
+    analysis lab
+level: medium

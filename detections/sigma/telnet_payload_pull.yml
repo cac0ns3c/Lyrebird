@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: Second-Stage Payload Pull Over Telnet Shell (IoT Loader)
+id: 8f2b6d40-1e57-4a93-b0c8-5d3f9a1e7c24
+status: experimental
+description: >
+  After the Lyrebird Telnet honeypot grants a fake shell, a command that fetches
+  a remote payload (wget/curl/tftp/busybox) is tagged 'telnet-payload-pull' with
+  the extracted URL. The emulator logs the request but never fetches anything. A
+  sample retrieving a second stage over a Telnet shell is the IoT-loader tell.
+  Pair: services/telnet.py tags such commands 'telnet-payload-pull' (command,
+  tool, url recorded).
+author: Lyrebird
+date: 2026/07/01
+logsource:
+  product: lyrebird
+  service: telnet
+detection:
+  selection:
+    service: 'telnet'
+    tags|contains: 'telnet-payload-pull'
+  condition: selection
+fields:
+  - src_ip
+  - request.tool
+  - request.url
+  - request.command
+falsepositives:
+  - An administrator fetching a file through an interactive Telnet shell
+level: high
