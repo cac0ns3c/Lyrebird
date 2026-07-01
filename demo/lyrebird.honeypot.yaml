@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Demo lab config for the honeypot walkthrough (demo/lyrebird.honeypot.tape).
+# Unprivileged high port so the recording renders without root; a Telnet
+# credential-capture honeypot that accepts after a few attempts, then a fake
+# shell. Fixed data dir so the tape can read the JSONL.
+bind_address: "127.0.0.1"
+data_dir: "./demo/.labdata"
+session: "honeypot"
+echo: false
+
+tls:
+  enabled: false
+
+services:
+  telnet:
+    enabled: true
+    port: 2323
+    accept_after: 3          # grant the fake shell on the 3rd attempt
+    bruteforce_threshold: 3   # flag telnet-bruteforce at/after 3 attempts
+  # everything else off for a focused clip
+  http: {enabled: false}
+  dns:  {enabled: false}
+  dns_tcp: {enabled: false}
+  smtp: {enabled: false}
+  pop3: {enabled: false}
+  imap: {enabled: false}
+  ftp:  {enabled: false}
+  tftp: {enabled: false}
+  irc:  {enabled: false}
+  ntp:  {enabled: false}
+  ssh:  {enabled: false}
+  quic: {enabled: false}
+  tcp_sink: {enabled: false}

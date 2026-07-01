@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Render a demo GIF from a VHS tape.
 #
-#   ./demo/render.sh           # base demo  -> docs/assets/demo.gif    (offline)
-#   ./demo/render.sh ai        # AI demo    -> docs/assets/demo-ai.gif (needs a key)
+#   ./demo/render.sh           # base demo     -> docs/assets/demo.gif          (offline)
+#   ./demo/render.sh honeypot  # honeypot demo -> docs/assets/demo-honeypot.gif (offline)
+#   ./demo/render.sh ai        # AI demo       -> docs/assets/demo-ai.gif       (needs a key)
 #
 # Prerequisites:
 #   - vhs            : brew install vhs   (https://github.com/charmbracelet/vhs)
@@ -17,9 +18,10 @@ cd "$(dirname "$0")/.."
 
 mode="${1:-base}"
 case "$mode" in
-  base) tape="demo/lyrebird.tape";    out="docs/assets/demo.gif" ;;
-  ai)   tape="demo/lyrebird.ai.tape"; out="docs/assets/demo-ai.gif" ;;
-  *)    echo "usage: $0 [base|ai]" >&2; exit 2 ;;
+  base)     tape="demo/lyrebird.tape";          out="docs/assets/demo.gif" ;;
+  honeypot) tape="demo/lyrebird.honeypot.tape"; out="docs/assets/demo-honeypot.gif" ;;
+  ai)       tape="demo/lyrebird.ai.tape";       out="docs/assets/demo-ai.gif" ;;
+  *)        echo "usage: $0 [base|honeypot|ai]" >&2; exit 2 ;;
 esac
 
 if ! command -v vhs >/dev/null 2>&1; then

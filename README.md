@@ -5,10 +5,11 @@
 [![CI](https://github.com/cac0ns3c/Lyrebird/actions/workflows/ci.yml/badge.svg)](https://github.com/cac0ns3c/Lyrebird/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](pyproject.toml)
+[![PyPI](https://img.shields.io/pypi/v/lyrebird-emulator.svg)](https://pypi.org/project/lyrebird-emulator/)
 
 Lyrebird stands up fake-but-believable network services — HTTP/HTTPS, DNS
-(UDP + TCP), SMTP, POP3/IMAP, FTP, TFTP, SSH, Telnet, IRC, NTP, TLS, and a
-generic TCP sink — so that a malware sample running in an **isolated sandbox**
+(UDP + TCP), SMTP, POP3/IMAP, FTP, TFTP, SSH, Telnet, IRC, NTP, TLS, QUIC/HTTP-3,
+and a generic TCP sink — so that a malware sample running in an **isolated sandbox**
 behaves as if it were online. Every interaction is recorded as a structured JSON
 event, and every payload the sample sends is captured to disk.
 It's a spiritual successor to [INetSim](https://www.inetsim.org/) (last release
@@ -30,6 +31,18 @@ interaction lands as structured JSONL with detections firing as tags:
 > The "sample" is a benign `curl`/`dig` — Lyrebird only observes. The recording
 > is generated from [`demo/lyrebird.tape`](demo/lyrebird.tape) with
 > [VHS](https://github.com/charmbracelet/vhs); see [`demo/`](demo/) to reproduce it.
+
+### Credential-capture honeypot
+
+The SSH and Telnet honeypots capture brute-force credentials, then hand the
+"sample" a fake shell that logs its commands — including the second-stage
+payload-pull URL — while executing and fetching nothing:
+
+![Lyrebird honeypot demo: a Mirai-style sample brute-forces the Telnet login, gets a fake shell, and pulls a second stage — captured as telnet-bruteforce and telnet-payload-pull tagged JSONL](docs/assets/demo-honeypot.gif)
+
+> Generated from [`demo/lyrebird.honeypot.tape`](demo/lyrebird.honeypot.tape); the
+> "sample" is a benign Python client. Lyrebird records the brute-force and the
+> payload URL — it never runs the command or fetches anything.
 
 ### With the AI model layer
 
@@ -60,6 +73,15 @@ ingestion. Lyrebird keeps the proven model and modernizes it:
 - **Paired Sigma detections** — every service ships with detection content
 
 ## Quick start
+
+Install from PyPI and run with the built-in defaults:
+
+```bash
+pip install lyrebird-emulator
+lyrebird                # binds the standard service ports (run as root on the lab host)
+```
+
+Or from source, with the example config:
 
 ```bash
 pip install -r requirements.txt

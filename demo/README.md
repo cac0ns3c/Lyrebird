@@ -5,10 +5,14 @@ A short, reproducible terminal recording that shows Lyrebird in action: a lab
 boots, a stand-in "sample" talks to the emulated services, and every interaction
 lands as structured JSONL with detection tags firing.
 
-There are two clips:
+There are three clips:
 
 - **Base demo** (`docs/assets/demo.gif`) — fully offline/air-gapped, reproducible
-  by anyone.
+  by anyone. A `curl`/`dig` sample checks in over HTTP + DNS.
+- **Honeypot demo** (`docs/assets/demo-honeypot.gif`) — fully offline. A
+  Mirai-style Python client brute-forces the Telnet honeypot, is handed a fake
+  shell, and pulls a second stage — captured as `telnet-bruteforce` and
+  `telnet-payload-pull`. Render with `./demo/render.sh honeypot`.
 - **AI-assisted demo** (`docs/assets/demo-ai.gif`) — shows the optional model
   layer; needs a real `ANTHROPIC_API_KEY` to render (it makes live Claude calls).
 

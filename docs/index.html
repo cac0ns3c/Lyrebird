@@ -277,7 +277,7 @@
         <p class="thesis">Fake-but-believable network services, so malware in a sandbox keeps talking — and every technique it shows you has a detection waiting.</p>
         <div class="meta">
           <span class="chip">async Python</span>
-          <span class="chip">13 services</span>
+          <span class="chip">16 services</span>
           <span class="chip">structured JSONL → SIEM</span>
           <span class="chip">Sigma + analytics</span>
           <span class="chip">container-native</span>
@@ -317,6 +317,10 @@
         <figcaption style="margin-top:.7rem;font-size:.9rem;opacity:.72">A lab boots, a stand-in <code class="inline">curl</code>/<code class="inline">dig</code> sample talks to the services, and every interaction lands as structured JSONL with detections firing as tags. Reproducible from <code class="inline">demo/lyrebird.tape</code>.</figcaption>
       </figure>
       <figure style="margin:2.4rem 0 0">
+        <img src="assets/demo-honeypot.gif" alt="Lyrebird honeypot demo: a Mirai-style sample brute-forces the Telnet login, is handed a fake shell, and pulls a second stage — captured as telnet-bruteforce and telnet-payload-pull tagged JSONL" loading="lazy" style="width:100%;border:1px solid var(--line,#2a2f3a);border-radius:10px;display:block">
+        <figcaption style="margin-top:.7rem;font-size:.9rem;opacity:.72"><strong>Credential-capture honeypot.</strong> The SSH/Telnet honeypots capture brute-force credentials, then a fake shell logs the sample's commands — including the second-stage payload-pull URL — while executing and fetching nothing. Reproducible from <code class="inline">demo/lyrebird.honeypot.tape</code>.</figcaption>
+      </figure>
+      <figure style="margin:2.4rem 0 0">
         <img src="assets/demo-ai.gif" alt="Lyrebird AI demo: the optional model layer improvises a benign, inert reply for an endpoint no static rule anticipated, then triages the captured session into a verdict and suggested Sigma detections" loading="lazy" style="width:100%;border:1px solid var(--line,#2a2f3a);border-radius:10px;display:block">
         <figcaption style="margin-top:.7rem;font-size:.9rem;opacity:.72"><strong>Optional AI model layer.</strong> The model improvises a believable, <em>inert</em> response for an un-ruled endpoint so an unfamiliar sample keeps talking, then <code class="inline">lyrebird.analyze</code> triages the whole session into a verdict and candidate detections. Off by default; constrained to placeholder content only.</figcaption>
       </figure>
@@ -337,7 +341,7 @@
 
     <section id="services">
       <div class="h-num">03 / SERVICE FIELD GUIDE</div>
-      <h2>Thirteen services, each a specimen</h2>
+      <h2>Sixteen services, each a specimen</h2>
       <p class="lead">Lyrebird matches and extends INetSim's coverage. Every service answers, captures, and emits — and each is enabled or disabled independently in config.</p>
       <div class="plates">
         <div class="plate"><div class="pn">PLATE 01</div><h4>HTTP / HTTPS</h4><div class="port">tcp · 80 / 443</div><p>Catch-all routing on any method or path. Templated responses, fakefile serving, full body capture, auto-TLS.</p><div class="tagline">↳ missing-user-agent · frontable-host</div></div>
@@ -349,10 +353,13 @@
         <div class="plate"><div class="pn">PLATE 07</div><h4>FTP</h4><div class="port">tcp · 21</div><p>Passive and active mode; captures STOR uploads as hashed artifacts.</p><div class="tagline">↳ upload (exfil / drop)</div></div>
         <div class="plate"><div class="pn">PLATE 08</div><h4>TFTP</h4><div class="port">udp · 69</div><p>Captures WRQ uploads with a per-transfer id.</p><div class="tagline">↳ upload</div></div>
         <div class="plate"><div class="pn">PLATE 09</div><h4>IRC</h4><div class="port">tcp · 6667</div><p>Observes classic bot C2 — nick, channel joins, PRIVMSG tasking.</p><div class="tagline">↳ channel-join</div></div>
-        <div class="plate"><div class="pn">PLATE 10</div><h4>NTP</h4><div class="port">udp · 123</div><p>Answers time, with a configurable faketime delta to shift the lab clock.</p><div class="tagline">↳ faketime</div></div>
+        <div class="plate"><div class="pn">PLATE 10</div><h4>NTP</h4><div class="port">udp · 123</div><p>Answers time with a configurable faketime delta; flags mode-6/7 control &amp; MONLIST queries — the NTP amplification/reflection vector.</p><div class="tagline">↳ faketime · ntp-control-query</div></div>
         <div class="plate"><div class="pn">PLATE 11</div><h4>TLS (serve)</h4><div class="port">tcp · 443</div><p>Fingerprints JA3/JA4, terminates with the lab cert, serves a placeholder — and correlates SNI vs Host on one connection.</p><div class="tagline">↳ sni-host-mismatch · off by default</div></div>
         <div class="plate"><div class="pn">PLATE 12</div><h4>TLS capture</h4><div class="port">tcp · 8443</div><p>Lightweight JA3/JA4 tap: fingerprint the ClientHello, then close.</p><div class="tagline">↳ ja3 / ja4 · off by default</div></div>
-        <div class="plate"><div class="pn">PLATE 13</div><h4>TCP sink</h4><div class="port">tcp · extra</div><p>Catch-all for ports without a dedicated service; logs everything sent (INetSim "Dummy").</p><div class="tagline">↳ protocol-on-unexpected-port</div></div>
+        <div class="plate"><div class="pn">PLATE 13</div><h4>SSH</h4><div class="port">tcp · 22</div><p>asyncssh honeypot: captures brute-force credentials, then a fake shell logs commands and payload-pull URLs while fetching nothing.</p><div class="tagline">↳ ssh-bruteforce · ssh-payload-pull</div></div>
+        <div class="plate"><div class="pn">PLATE 14</div><h4>Telnet</h4><div class="port">tcp · 23</div><p>Plaintext IoT/Mirai honeypot: strips IAC negotiation, captures brute-force creds, then a fake shell logs commands.</p><div class="tagline">↳ telnet-bruteforce · telnet-payload-pull</div></div>
+        <div class="plate"><div class="pn">PLATE 15</div><h4>QUIC / HTTP-3</h4><div class="port">udp · 443</div><p>aioquic HTTP/3 server: terminates QUIC with the lab cert, captures each h3 request and body, and answers benignly.</p><div class="tagline">↳ http3-transport</div></div>
+        <div class="plate"><div class="pn">PLATE 16</div><h4>TCP sink</h4><div class="port">tcp · extra</div><p>Catch-all for ports without a dedicated service; logs everything sent (INetSim "Dummy").</p><div class="tagline">↳ protocol-on-unexpected-port</div></div>
       </div>
       <div class="note"><span class="lbl">Plugin contract</span>Adding a service means subclassing <code class="inline">BaseService</code>, implementing <code class="inline">start()</code> / <code class="inline">stop()</code>, emitting events with <code class="inline">self.emit(...)</code>, and registering the class. That's the whole contract.</div>
     </section>
@@ -411,7 +418,7 @@
     <section id="analytics">
       <div class="h-num">06 / BEHAVIOURAL ANALYTICS</div>
       <h2>For the cases a single event can't show</h2>
-      <p class="lead">Timing and content evasions aren't single-event signatures. Two analytics run over a captured session and report the fingerprints those techniques leave behind — detection only; neither generates traffic.</p>
+      <p class="lead">Timing and content evasions aren't single-event signatures. Three analytics run over a captured session and report the fingerprints those techniques leave behind — detection only; none generates traffic.</p>
       <div class="twocol">
         <div>
           <h3>lyrebird.beacons</h3>
@@ -439,6 +446,18 @@ python -m lyrebird.mimicry \
   --session labdata/events/&lt;id&gt;.jsonl \
   --data-dir labdata</pre>
         </div>
+        <div>
+          <h3>lyrebird.dns_tunnel</h3>
+          <p>DNS tunneling / data-exfil channels — what a single long label can't confirm. It groups a session's DNS queries by source and parent domain and flags a channel by:</p>
+          <ul class="clean">
+            <li><strong>volume</strong> — many queries under one parent domain.</li>
+            <li><strong>entropy</strong> — high mean subdomain Shannon entropy (encoded data).</li>
+            <li><strong>uniqueness</strong> — near-all-unique subdomains (one query per chunk).</li>
+          </ul>
+          <pre><span class="c"># defensive pair to DNS exfil / tunneling</span>
+python -m lyrebird.dns_tunnel \
+  --session labdata/events/&lt;id&gt;.jsonl</pre>
+        </div>
       </div>
     </section>
 
@@ -446,7 +465,10 @@ python -m lyrebird.mimicry \
       <div class="h-num">07 / QUICK START</div>
       <h2>Boot a lab in one command</h2>
       <p class="lead">Run it directly, or containerized on an internal network with no outbound route.</p>
-      <h3>Directly</h3>
+      <h3>From PyPI</h3>
+      <pre><span class="k">pip</span> install lyrebird-emulator
+<span class="k">lyrebird</span></pre>
+      <h3>From source</h3>
       <pre><span class="k">pip</span> install -r requirements.txt
 <span class="k">python</span> -m lyrebird --config config/lyrebird.yaml</pre>
       <h3>Containerized — recommended</h3>
