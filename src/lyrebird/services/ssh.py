@@ -14,6 +14,7 @@ from typing import Any
 import asyncssh
 
 from ..base import BaseService
+from .ssh_shell import respond
 
 
 class _ConnHandler(asyncssh.SSHServer):
@@ -97,7 +98,8 @@ class SshService(BaseService):
         version = banner.split("SSH-2.0-", 1)[-1]  # asyncssh re-adds the prefix
         self._server = await asyncssh.create_server(
             lambda: _ConnHandler(self), host=self.bind_address, port=self.port,
-            server_host_keys=[self._host_key()], server_version=version)
+            server_host_keys=[self._host_key()], server_version=version,
+            process_factory=self._handle_shell)
 
     async def stop(self) -> None:
         if self._server:
@@ -106,3 +108,42 @@ class SshService(BaseService):
                 await self._server.wait_closed()
             except Exception:
                 pass
+
+    async def _handle_shell(self, process: asyncssh.SSHServerProcess) -> None:
+        peer = process.get_extra_info("peername") or ("?", 0)
+        try:
+            if process.command is not None:
+                self._run_command(process.command, peer, process)
+            else:
+                process.stdout.write("$ ")
+                async for line in process.stdin:
+                    cmd = line.strip()
+                    if not cmd:
+                        process.stdout.write("$ ")
+                        continue
+                    if cmd in ("exit", "logout", "quit"):
+                        break
+                    self._run_command(cmd, peer, process)
+                    process.stdout.write("$ ")
+        except Exception:
+            pass  # a dropped session must not escape the handler
+        finally:
+            try:
+                process.exit(0)
+            except Exception:
+                pass
+
+    def _run_command(self, cmd: str, peer, process: asyncssh.SSHServerProcess) -> None:
+        output, pull = respond(cmd)
+        process.stdout.write(output + ("\n" if not output.endswith("\n") else ""))
+        if pull is not None:
+            self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                      dst_port=self.port, event_type="request",
+                      summary=f"ssh payload-pull {pull['tool']} {pull['url']}",
+                      request={"command": cmd, "tool": pull["tool"], "url": pull["url"]},
+                      tags=["ssh-payload-pull"])
+        else:
+            self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                      dst_port=self.port, event_type="request",
+                      summary=f"ssh shell: {cmd}",
+                      request={"command": cmd}, tags=[])

