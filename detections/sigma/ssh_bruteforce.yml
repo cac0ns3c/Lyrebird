@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: SSH Brute-Force By Sample (Credential Guessing / Lateral Movement)
+id: 2f8d1c4a-6b7e-4a1d-9c2f-3e5b7a9d0c11
+status: experimental
+description: >
+  The Lyrebird SSH honeypot completes a real key exchange and tags a connection
+  'ssh-bruteforce' once it makes repeated password attempts. In an isolated
+  single-sample lab there are no administrators, so a sample guessing SSH
+  credentials is a brute-force / lateral-movement tell.
+  Pair: services/ssh.py tags such connections 'ssh-bruteforce' (attempts,
+  client_version, and accepted recorded).
+author: Lyrebird
+date: 2026/06/30
+logsource:
+  product: lyrebird
+  service: ssh
+detection:
+  selection:
+    service: 'ssh'
+    tags|contains: 'ssh-bruteforce'
+  condition: selection
+fields:
+  - src_ip
+  - request.attempts
+  - request.client_version
+  - request.accepted
+falsepositives:
+  - Legitimate administrators or scanners using repeated SSH auth outside a
+    single-sample analysis lab
+level: medium

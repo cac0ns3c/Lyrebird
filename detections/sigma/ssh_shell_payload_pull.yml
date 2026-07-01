@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: Second-Stage Payload Pull Over SSH Shell
+id: 7c3a9e21-0d4b-4f6a-8e15-2b9c6d1f4a83
+status: experimental
+description: >
+  After the Lyrebird SSH honeypot grants a fake shell, a command that fetches a
+  remote payload (wget/curl/tftp/busybox) is tagged 'ssh-payload-pull' with the
+  extracted URL. The emulator logs the request but never fetches anything. A
+  sample retrieving a second stage over an SSH shell is a strong loader tell.
+  Pair: services/ssh.py tags such commands 'ssh-payload-pull' (command, tool,
+  url recorded).
+author: Lyrebird
+date: 2026/06/30
+logsource:
+  product: lyrebird
+  service: ssh
+detection:
+  selection:
+    service: 'ssh'
+    tags|contains: 'ssh-payload-pull'
+  condition: selection
+fields:
+  - src_ip
+  - request.tool
+  - request.url
+  - request.command
+falsepositives:
+  - An administrator fetching a file through an interactive SSH shell
+level: high
