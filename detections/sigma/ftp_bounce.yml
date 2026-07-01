@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: FTP Bounce / Active-Mode Data Redirect By Sample
+id: 6b1f0a3c-2d84-4e91-b7a5-9c0f13e6d472
+status: experimental
+description: >
+  The Lyrebird FTP emulator confines active-mode (PORT/EPRT) data connections to
+  the client's own control-channel IP. A PORT/EPRT naming a different host is an
+  FTP-bounce / data-redirect attempt (isolation break / egress) — the emulator
+  refuses to dial it and tags the connection 'ftp-bounce'. In a single-sample
+  lab a legitimate client only ever names its own address, so this is a strong
+  tell.
+  Pair: services/ftp.py tags such connections 'ftp-bounce' (command,
+  requested_host, requested_port, control_src recorded).
+author: Lyrebird
+date: 2026/07/01
+logsource:
+  product: lyrebird
+  service: ftp
+detection:
+  selection:
+    service: 'ftp'
+    tags|contains: 'ftp-bounce'
+  condition: selection
+fields:
+  - src_ip
+  - request.requested_host
+  - request.requested_port
+  - request.command
+falsepositives:
+  - A legitimate FTP client behind an unusual proxy/relay naming a non-self
+    address in PORT/EPRT (rare outside a single-sample analysis lab)
+level: high
