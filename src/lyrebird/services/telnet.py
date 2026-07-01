@@ -79,6 +79,27 @@ class TelnetService(BaseService):
         client = f"{peer[0]}:{peer[1]}"
         attempts = 0
         accepted = False
+        bf_emitted = False
+
+        def emit_bruteforce() -> None:
+            # Fire ONCE per connection when the brute-force threshold is crossed,
+            # on ANY exit (clean EOF, acceptance, RST, timeout) — so an aborted
+            # failed credential-list run is still flagged. Matches SSH's model.
+            nonlocal bf_emitted
+            if bf_emitted or attempts < self.bruteforce_threshold:
+                return
+            bf_emitted = True
+            try:
+                self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                          dst_port=self.port, event_type="request",
+                          summary=(f"telnet brute-force {attempts} attempts "
+                                   f"client={client} accepted={accepted}"),
+                          request={"attempts": attempts, "client": client,
+                                   "accepted": accepted},
+                          tags=["telnet-bruteforce"])
+            except Exception:
+                pass
+
         try:
             writer.write(str(self.cfg.get("banner", "")).encode())
             await writer.drain()
@@ -108,18 +129,7 @@ class TelnetService(BaseService):
                     await writer.drain()
                     if reader.at_eof():
                         break
-            # Fire the brute-force signal for ANY connection that crossed the
-            # threshold — successful or not (a failed credential-list run that
-            # hangs up is still the tell), matching the SSH honeypot's
-            # per-connection model.
-            if attempts >= self.bruteforce_threshold:
-                self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
-                          dst_port=self.port, event_type="request",
-                          summary=(f"telnet brute-force {attempts} attempts "
-                                   f"client={client} accepted={accepted}"),
-                          request={"attempts": attempts, "client": client,
-                                   "accepted": accepted},
-                          tags=["telnet-bruteforce"])
+            emit_bruteforce()          # clean path (fires before the shell)
             if accepted:
                 await self._shell(reader, writer, peer)
         except (asyncio.TimeoutError, ConnectionError):
@@ -127,6 +137,7 @@ class TelnetService(BaseService):
         except Exception:
             pass
         finally:
+            emit_bruteforce()          # exception/abrupt-disconnect path (RST, timeout)
             try:
                 writer.close()
                 await writer.wait_closed()

