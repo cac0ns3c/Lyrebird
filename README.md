@@ -114,6 +114,7 @@ so it never drifts. Regenerate with `python scripts/gen_reference.py`.
 | TLS fingerprint tap | TCP | ✅ implemented | JA3/JA4 + SNI capture then close (off by default) |
 | SSH | TCP | ✅ implemented | asyncssh honeypot; captures brute-force credentials, then a fake shell logs commands (ssh-bruteforce, ssh-payload-pull) |
 | Telnet | TCP | ✅ implemented | plaintext IoT/Mirai honeypot; brute-force creds → fake shell logs commands (telnet-bruteforce, telnet-payload-pull) |
+| QUIC / HTTP-3 | UDP | ✅ implemented | aioquic h3 server; captures each HTTP/3 request and answers benignly (http3-transport) |
 
 > The SSH honeypot uses the `asyncssh` library (a required dependency). If `asyncssh` is unavailable the SSH service is skipped and the rest of the emulator keeps running.
 
@@ -251,7 +252,7 @@ tests/
 
 ## Status
 
-All fifteen services and all three session analytics are implemented, tested
+All sixteen services and all three session analytics are implemented, tested
 (113 tests, green on Python 3.10–3.12), and runnable; the suite boots end to end
 and every service emits telemetry. Recent additions — SSH and Telnet
 credential-capture honeypots, IMAP IDLE emulation, FTP active-mode (FTP-bounce)

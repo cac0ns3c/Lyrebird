@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-01
+
+### Added
+- **QUIC / HTTP-3 service** (service #16): terminates QUIC on UDP with a lab
+  cert, captures each HTTP/3 request (method / authority / path / headers /
+  body), and answers benignly. Emits the paired `http3-transport` signal (an
+  inspection-evasion-transport tell) and reuses `missing-user-agent`. Adds the
+  `aioquic` dependency.
+
 ## [0.1.0] — 2026-07-01
 
 First public release: a modern, async-first successor to INetSim with detection
@@ -49,5 +58,6 @@ detection in the same tree.
 
 - GPL-3.0-or-later; contributions under the DCO (`git commit -s`).
 
-[Unreleased]: https://github.com/cac0ns3c/Lyrebird/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cac0ns3c/Lyrebird/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cac0ns3c/Lyrebird/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cac0ns3c/Lyrebird/releases/tag/v0.1.0

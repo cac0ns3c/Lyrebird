@@ -64,6 +64,7 @@ Levels are shipped defaults — tune to your environment.
 | IMAP IDLE Used By Sample (Possible Mailbox C2 Long-Poll) | `imap` | `tags=imap-idle` | medium |
 | IRC Channel Join Observed By Lab Emulator (Possible Botnet C2) | `irc` | `tags=channel-join` | high |
 | NTP Control/Private Query By Sample (mode 6/7 — MONLIST Amplification Recon) | `ntp` | `tags=ntp-control-query` | high |
+| HTTP/3 (QUIC) Session By Sample (Inspection-Evasion Transport) | `quic` | `tags=http3-transport` | medium |
 | Bulk-Recipient Mail Captured By Lab Emulator (Possible Mass Mailer) | `smtp` | `tags=bulk-recipients` | medium |
 | SSH Brute-Force By Sample (Credential Guessing / Lateral Movement) | `ssh` | `tags=ssh-bruteforce` | medium |
 | Second-Stage Payload Pull Over SSH Shell | `ssh` | `tags=ssh-payload-pull` | high |
