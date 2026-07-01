@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: HTTP/3 (QUIC) Session By Sample (Inspection-Evasion Transport)
+id: 2b9f4c17-6d83-4e50-a1c6-9f7b3e02d854
+status: experimental
+description: >
+  The Lyrebird QUIC service tags every HTTP/3 request 'http3-transport'. HTTP/3
+  runs over QUIC/UDP and is not parsed by most TCP/TLS network sensors, so a
+  sample choosing HTTP/3 to reach the emulator in a single-sample lab is a
+  modern-C2 / inspection-evasion tell.
+  Pair: services/quic.py tags such requests 'http3-transport' (method, authority,
+  path, and user_agent recorded).
+author: Lyrebird
+date: 2026/07/01
+logsource:
+  product: lyrebird
+  service: quic
+detection:
+  selection:
+    service: 'quic'
+    tags|contains: 'http3-transport'
+  condition: selection
+fields:
+  - src_ip
+  - request.method
+  - request.authority
+  - request.path
+  - request.user_agent
+falsepositives:
+  - A benign client that legitimately prefers HTTP/3 outside a single-sample
+    analysis lab
+level: medium
