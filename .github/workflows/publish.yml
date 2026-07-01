@@ -53,3 +53,8 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Idempotent: don't fail a re-run when a file for this version is
+          # already on PyPI (versions are immutable — bump the version to
+          # publish new content).
+          skip-existing: true
