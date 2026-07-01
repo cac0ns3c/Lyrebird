@@ -55,6 +55,14 @@ REGISTRY: dict[str, Type[BaseService]] = {
     "tcp_sink": TcpSinkService,
 }
 
+# SSH depends on the compiled `asyncssh` package; register it only if importable
+# so a missing crypto dependency doesn't take down the rest of the emulator.
+try:
+    from .services.ssh import SshService
+    REGISTRY["ssh"] = SshService
+except Exception:  # asyncssh not installed
+    pass
+
 
 class Orchestrator:
     def __init__(self, cfg: Config) -> None:
