@@ -2,10 +2,15 @@
 
 **Modern internet-services emulation suite for malware analysis labs.**
 
-Lyrebird stands up fake-but-believable network services — HTTP/HTTPS, DNS, SMTP,
-NTP, and a generic TCP sink — so that a malware sample running in an **isolated
-sandbox** behaves as if it were online. Every interaction is recorded as a
-structured JSON event, and every payload the sample sends is captured to disk.
+[![CI](https://github.com/cac0ns3c/Lyrebird/actions/workflows/ci.yml/badge.svg)](https://github.com/cac0ns3c/Lyrebird/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](pyproject.toml)
+
+Lyrebird stands up fake-but-believable network services — HTTP/HTTPS, DNS
+(UDP + TCP), SMTP, POP3/IMAP, FTP, TFTP, SSH, Telnet, IRC, NTP, TLS, and a
+generic TCP sink — so that a malware sample running in an **isolated sandbox**
+behaves as if it were online. Every interaction is recorded as a structured JSON
+event, and every payload the sample sends is captured to disk.
 It's a spiritual successor to [INetSim](https://www.inetsim.org/) (last release
 1.3.2, 2020), rebuilt async-first in Python with detection telemetry as a
 first-class output.
@@ -246,11 +251,14 @@ tests/
 
 ## Status
 
-All fifteen services and all three detection-analytics phases are implemented,
-tested, and runnable; the suite boots end to end and every service emits
-telemetry. The plugin contract is stable, so the remaining items (IMAP IDLE,
-active-mode edge cases, packet-layer JA3 enrichment) are additive. See `SCOPE.md`
-for positioning and the roadmap.
+All fifteen services and all three session analytics are implemented, tested
+(113 tests, green on Python 3.10–3.12), and runnable; the suite boots end to end
+and every service emits telemetry. Recent additions — SSH and Telnet
+credential-capture honeypots, IMAP IDLE emulation, FTP active-mode (FTP-bounce)
+hardening, TLS JA3/JA4 fingerprinting, NTP mode-6/7 MONLIST detection, and a DNS
+tunneling/exfil analytic — each ship with their paired detection. The plugin
+contract is stable; further work is additive. See `SCOPE.md` for positioning and
+the roadmap.
 
 ## Contributing
 
