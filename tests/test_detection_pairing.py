@@ -32,7 +32,7 @@ SIGMA = ROOT / "detections" / "sigma"
 CONTEXT_OR_ANALYTIC_TAGS = {
     "tls", "fingerprint",          # present on every TLS event as context
     "irc", "privmsg",              # session context; channel-join is the signal
-    "credentials",                 # captured evidence (pop3/imap/ftp/smtp auth)
+    "credentials",                 # captured evidence (pop3/imap/ftp/smtp/ssh auth)
     "txt-query",                   # dns context; long-label is the signal
     "model-response",              # http response provenance (data-out is paired)
     "faketime",                    # benign lab-clock shift, not malicious

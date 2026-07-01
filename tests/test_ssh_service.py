@@ -100,12 +100,14 @@ def test_ssh_accepts_after_threshold_and_flags_bruteforce(tmp_path):
     events = _wait_for_events(log)
     creds = [e for e in events if "credentials" in e.get("tags", [])]
     assert len(creds) == 3
+    assert creds[0]["request"]["accepted"] is False
+    assert creds[1]["request"]["accepted"] is False
     assert creds[-1]["request"]["accepted"] is True
     bf = [e for e in events if "ssh-bruteforce" in e.get("tags", [])]
     assert bf, "no ssh-bruteforce signal"
     assert bf[0]["request"]["attempts"] == 3
     assert bf[0]["request"]["accepted"] is True
-    assert isinstance(bf[0]["request"]["client_version"], str)
+    assert bf[0]["request"]["client_version"].startswith("SSH-2.0-")
 
 
 def test_ssh_weak_cred_accepted_immediately(tmp_path):
@@ -225,3 +227,64 @@ def test_ssh_subsystem_request_is_logged_not_shelled(tmp_path):
     assert subsys[0]["request"]["subsystem"] == "netconf"
     # it must NOT have been treated as a shell (no command events)
     assert not [e for e in events if e.get("request", {}).get("command")]
+
+
+def test_ssh_interactive_shell_survives_terminal_resize(tmp_path):
+    # A real PTY client sending a window-change makes asyncssh raise
+    # TerminalSizeChanged on stdin; that must NOT kill the session — commands
+    # issued after the resize must still be captured.
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": 1, "bruteforce_threshold": 99},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        async with asyncssh.connect("127.0.0.1", port, username="root",
+                                    known_hosts=None,
+                                    client_factory=_client(["root"])) as conn:
+            proc = await conn.create_process(term_type="xterm")   # request a PTY
+            proc.stdin.write("whoami\n")
+            await proc.stdin.drain()
+            await asyncio.sleep(0.1)
+            proc.change_terminal_size(100, 40)                    # the trigger
+            await asyncio.sleep(0.1)
+            proc.stdin.write("id\n")
+            proc.stdin.write("exit\n")
+            await proc.stdin.drain()
+            await asyncio.wait_for(proc.wait_closed(), timeout=5)
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    cmds = [e["request"]["command"] for e in events if e.get("request", {}).get("command")]
+    assert "whoami" in cmds
+    assert "id" in cmds  # captured AFTER the resize — the pre-fix bug dropped this
+
+
+def test_ssh_bad_accept_after_config_still_logs_credentials(tmp_path):
+    # A non-numeric accept_after (operator typo) must not break credential
+    # logging — it's coerced to the default in __init__, not in the callback.
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": "three", "bruteforce_threshold": "x"},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        try:
+            await asyncssh.connect("127.0.0.1", port, username="root",
+                                   known_hosts=None, client_factory=_client(["nope"]))
+        except asyncssh.PermissionDenied:
+            pass
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    creds = [e for e in events if "credentials" in e.get("tags", [])]
+    assert creds, "credentials not logged with bad accept_after config"
+    assert creds[0]["request"]["user"] == "root"

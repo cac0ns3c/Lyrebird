@@ -17,6 +17,14 @@ from ..base import BaseService
 from .ssh_shell import respond
 
 
+def _int_or(value: Any, default: int) -> int:
+    """Coerce operator config to int, falling back on bad/missing values."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 class _ConnHandler(asyncssh.SSHServer):
     """Per-connection auth handler. Logs each attempt; Task 2 adds acceptance."""
 
@@ -43,17 +51,15 @@ class _ConnHandler(asyncssh.SSHServer):
 
     def validate_password(self, username: str, password: str) -> bool:
         self.attempts += 1
-        cfg = self.service.cfg
-        weak = cfg.get("weak_creds") or []
-        accept_after = int(cfg.get("accept_after", 3))
+        svc = self.service
         accept = (any(username == c.get("user") and password == c.get("password")
-                      for c in weak)
-                  or self.attempts >= accept_after)
+                      for c in svc.weak_creds)
+                  or self.attempts >= svc.accept_after)
         if accept:
             self.accepted = True
-        self.service.emit(
+        svc.emit(
             transport="tcp", src_ip=self.peer[0], src_port=self.peer[1],
-            dst_port=self.service.port, event_type="auth",
+            dst_port=svc.port, event_type="auth",
             summary=f"ssh auth user='{username}' accepted={accept}",
             request={"user": username, "password": password,
                      "method": "password", "accepted": accept},
@@ -61,8 +67,7 @@ class _ConnHandler(asyncssh.SSHServer):
         return accept
 
     def connection_lost(self, exc: Exception | None) -> None:
-        threshold = int(self.service.cfg.get("bruteforce_threshold", 3))
-        if self.attempts >= threshold:
+        if self.attempts >= self.service.bruteforce_threshold:
             self.service.emit(
                 transport="tcp", src_ip=self.peer[0], src_port=self.peer[1],
                 dst_port=self.service.port, event_type="request",
@@ -80,7 +85,14 @@ class SshService(BaseService):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._server: asyncssh.SSHAcceptor | None = None
-        self.port = int(self.cfg.get("port", 22))
+        # Coerce operator config ONCE here — not inside the asyncssh auth
+        # callback, where a bad value (e.g. `accept_after: three`) would raise
+        # and silently break credential logging for the whole run.
+        self.port = _int_or(self.cfg.get("port"), 22)
+        self.accept_after = _int_or(self.cfg.get("accept_after"), 3)
+        self.bruteforce_threshold = _int_or(self.cfg.get("bruteforce_threshold"), 3)
+        weak = self.cfg.get("weak_creds")
+        self.weak_creds = [c for c in weak if isinstance(c, dict)] if isinstance(weak, list) else []
 
     def _host_key(self) -> asyncssh.SSHKey:
         key_dir = self.data_dir / "ssh"
@@ -99,7 +111,7 @@ class SshService(BaseService):
         self._server = await asyncssh.create_server(
             lambda: _ConnHandler(self), host=self.bind_address, port=self.port,
             server_host_keys=[self._host_key()], server_version=version,
-            process_factory=self._handle_shell)
+            process_factory=self._handle_shell, agent_forwarding=False)
 
     async def stop(self) -> None:
         if self._server:
@@ -129,7 +141,17 @@ class SshService(BaseService):
                 self._run_command(process.command, peer, process)
             else:
                 process.stdout.write("$ ")
-                async for line in process.stdin:
+                while True:
+                    try:
+                        line = await process.stdin.readline()
+                    except (asyncssh.TerminalSizeChanged, asyncssh.BreakReceived,
+                            asyncssh.SignalReceived):
+                        # asyncssh delivers channel control notifications (a
+                        # terminal resize, ^C, etc.) as exceptions on the next
+                        # read — they are not shell input; keep the session open.
+                        continue
+                    if not line:
+                        break  # real EOF / channel closed
                     cmd = line.strip()
                     if not cmd:
                         process.stdout.write("$ ")

