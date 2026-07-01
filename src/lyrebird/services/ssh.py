@@ -111,6 +111,19 @@ class SshService(BaseService):
 
     async def _handle_shell(self, process: asyncssh.SSHServerProcess) -> None:
         peer = process.get_extra_info("peername") or ("?", 0)
+        if process.subsystem:
+            # A subsystem request (sftp/netconf/…) is not an interactive shell;
+            # log the attempt and close rather than feeding binary framing into
+            # the text command loop.
+            self.emit(transport="tcp", src_ip=peer[0], src_port=peer[1],
+                      dst_port=self.port, event_type="request",
+                      summary=f"ssh subsystem request: {process.subsystem}",
+                      request={"subsystem": process.subsystem}, tags=[])
+            try:
+                process.exit(0)
+            except Exception:
+                pass
+            return
         try:
             if process.command is not None:
                 self._run_command(process.command, peer, process)

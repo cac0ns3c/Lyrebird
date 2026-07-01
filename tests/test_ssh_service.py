@@ -197,3 +197,31 @@ def test_ssh_interactive_shell_captures_commands(tmp_path):
     assert pull, "no ssh-payload-pull signal from interactive shell"
     assert pull[0]["request"]["tool"] == "wget"         # busybox wrapper stripped
     assert pull[0]["request"]["url"] == "http://10.0.0.9/m.bin"
+
+
+def test_ssh_subsystem_request_is_logged_not_shelled(tmp_path):
+    # A non-shell subsystem request (e.g. netconf) must be logged and closed,
+    # not routed into the text shell loop.
+    log = tmp_path / "e.jsonl"
+    sink = EventSink(session="t", log_path=log, echo=False)
+    svc = SshService(cfg={"port": 0, "accept_after": 1, "bruteforce_threshold": 99},
+                     sink=sink, bind_address="127.0.0.1", data_dir=tmp_path, tls={})
+
+    async def scenario():
+        await svc.start()
+        port = svc._server.get_port()
+        async with asyncssh.connect("127.0.0.1", port, username="root",
+                                    known_hosts=None,
+                                    client_factory=_client(["root"])) as conn:
+            proc = await conn.create_process(subsystem="netconf")
+            await asyncio.wait_for(proc.wait_closed(), timeout=5)
+        await svc.stop()
+
+    asyncio.run(scenario())
+    sink.close()
+    events = _wait_for_events(log)
+    subsys = [e for e in events if e.get("request", {}).get("subsystem")]
+    assert subsys, "subsystem request not logged"
+    assert subsys[0]["request"]["subsystem"] == "netconf"
+    # it must NOT have been treated as a shell (no command events)
+    assert not [e for e in events if e.get("request", {}).get("command")]
